@@ -23,25 +23,27 @@
 }
 
 .cesiumContainer {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  display: block;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 
 .fullscreenContainer {
+  width: 100vw;
+  height: 100vh;
   margin: 0;
   padding: 0;
-  height: 100%;
   overflow: hidden;
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 .cesiumContainer canvas {
@@ -150,4 +152,35 @@
 
 .zoom-button:active {
   background-color: rgba(80, 80, 80, 0.9);
+}
+
+.treeNode {
+  margin: 5px 0;
+  white-space: nowrap;
+}
+
+.treeNodeLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.treeNodeLabel input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+.treeviewToggle {
+  transition: left 0.3s;
+}
+
+.treeviewPanel {
+  transition: left 0.3s;
+}
+
+/* Ensure Cesium canvas is full size */
+.cesiumContainer :global(.cesium-widget),
+.cesiumContainer :global(.cesium-widget canvas) {
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
 }

@@ -8,25 +8,84 @@ const SatelliteViewer = () => {
   const creditsRef = useRef(null);  // Add new ref for credits
   const [cameraHeight, setCameraHeight] = useState(null);
   const [debugMessages, setDebugMessages] = useState([]);
+  const [showTreeview, setShowTreeview] = useState(false); // State to toggle treeview visibility
   
   // Helper function to add debug messages
   const addDebug = (message) => {
     console.log(message);
     setDebugMessages(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
+
+  // Tree structure for the satellites
+  const satelliteTree = {
+    name: "Satellites",
+    checked: false,
+    children: [
+      {
+        name: "HJ-1A",
+        checked: false,
+        children: [
+          { name: "CCD1", checked: false },
+          { name: "CCD2", checked: false }
+        ]
+      },
+      {
+        name: "HJ-1B",
+        checked: false,
+        children: [
+          { name: "CCD1", checked: false },
+          { name: "CCD2", checked: false }
+        ]
+      }
+    ]
+  };
   
+  // Function to handle checkbox change
+  const handleCheckboxChange = (path) => {
+    console.log("Checkbox changed:", path);
+    // Implement the checkbox state management here
+  };
+  
+  // Component for rendering tree nodes
+  const TreeNode = ({ node, level = 0, path = [] }) => {
+    const currentPath = [...path, node.name];
+    
+    return (
+      <div className={styles.treeNode} style={{ paddingLeft: `${level * 20}px` }}>
+        <label className={styles.treeNodeLabel}>
+          <input 
+            type="checkbox" 
+            checked={node.checked || false}
+            onChange={() => handleCheckboxChange(currentPath)}
+          />
+          {node.name}
+        </label>
+        
+        {node.children && node.children.map((child, index) => (
+          <TreeNode 
+            key={index} 
+            node={child} 
+            level={level + 1} 
+            path={currentPath}
+          />
+        ))}
+      </div>
+    );
+  };
+  
+  // Toggle treeview visibility
+  const toggleTreeview = () => {
+    setShowTreeview(!showTreeview);
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // Initialize Cesium with the correct base URL
       window.CESIUM_BASE_URL = '/cesium/';
-      
-      // Set access token - still keeping this in case some other features need it
       Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZTczYTJlMi0yYzE4LTQ4YTgtOWI2Zi1mMTg2YTg1ZWE1NjEiLCJpZCI6MjkxNTQwLCJpYXQiOjE3NDQwMDk5OTZ9.k1W2lo4Qh-AgmN9-ZM87Rsf1BZlr72QGcKgKoClBjO0';
       
       try {
         addDebug("Initializing Cesium with MBTiles imagery provider");
         
-        // Test if the MBTiles API is accessible
         fetch('/api/mbtiles-info')
           .then(res => res.json())
           .then(data => {
@@ -37,15 +96,12 @@ const SatelliteViewer = () => {
           })
           .catch(err => addDebug(`Failed to load MBTiles info: ${err.message}`));
         
-        // Configure geographic projection
         const rectangle = Cesium.Rectangle.fromDegrees(-180, -90, 180, 90);
         
-        // Create dedicated credits element
         const creditsContainer = document.createElement('div');
         creditsContainer.style.display = 'none';
         creditsRef.current = creditsContainer;
         
-        // Create viewer with proper initialization - without initial provider
         const viewer = new Cesium.Viewer(cesiumContainerRef.current, {
           baseLayerPicker: false,
           terrainProvider: new Cesium.EllipsoidTerrainProvider(),
@@ -53,18 +109,16 @@ const SatelliteViewer = () => {
           animation: false,
           sceneModePicker: true,
           navigationHelpButton: false,
-          geocoder: false, // Remove the search/find tool
+          geocoder: false,
           sceneMode: Cesium.SceneMode.SCENE3D,
           orderIndependentTranslucency: true,
           creditContainer: creditsContainer
         });
 
-        // Set the globe to be visible but transparent by default
         viewer.scene.globe.baseColor = Cesium.Color.BLACK;
         viewer.scene.backgroundColor = Cesium.Color.BLACK;
         viewer.scene.globe.showWaterEffect = false;
         
-        // Add MBTiles imagery provider as the only layer
         const mbtilesLayer = viewer.imageryLayers.addImageryProvider(
           new Cesium.UrlTemplateImageryProvider({
             url: '/api/mbtiles/{z}/{x}/{y}',
@@ -79,14 +133,11 @@ const SatelliteViewer = () => {
           })
         );
         
-        // Ensure layer is visible and properly rendered
         mbtilesLayer.show = true;
         viewer.scene.requestRender();
         
-        // Store the viewer reference before adding handlers
         viewerRef.current = viewer;
         
-        // Set initial view to show the full globe
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(0, 0, 20000000),
           orientation: {
@@ -96,10 +147,8 @@ const SatelliteViewer = () => {
           }
         });
         
-        // Customize the toolbar - add zoom buttons
         const toolbar = document.querySelector('.cesium-viewer-toolbar');
         
-        // Create Zoom In button and add it to the toolbar
         const zoomInButton = document.createElement('button');
         zoomInButton.className = 'cesium-button cesium-toolbar-button';
         zoomInButton.innerHTML = '+';
@@ -108,7 +157,6 @@ const SatelliteViewer = () => {
           zoomIn();
         };
         
-        // Create Zoom Out button and add it to the toolbar
         const zoomOutButton = document.createElement('button');
         zoomOutButton.className = 'cesium-button cesium-toolbar-button';
         zoomOutButton.innerHTML = '−';
@@ -117,28 +165,22 @@ const SatelliteViewer = () => {
           zoomOut();
         };
         
-        // Add buttons to toolbar (after it's fully loaded)
         setTimeout(() => {
           if (toolbar) {
-            // Insert at the beginning of the toolbar
             const firstChild = toolbar.firstChild;
             toolbar.insertBefore(zoomInButton, firstChild);
             toolbar.insertBefore(zoomOutButton, firstChild);
           }
         }, 500);
         
-        // Debug the tile loading process
         viewer.scene.globe.tileLoadProgressEvent.addEventListener((queuedTileCount) => {
           if (queuedTileCount === 0) {
-            // Force a re-render
             viewer.scene.requestRender();
           }
         });
 
-        // Add a debug handler to show coordinates on mouse move
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         handler.setInputAction((movement) => {
-          // Only run this if the viewer is still valid
           if (!viewerRef.current) return;
           
           try {
@@ -150,7 +192,6 @@ const SatelliteViewer = () => {
               setCameraHeight(viewer.camera.positionCartographic.height);
             }
           } catch (e) {
-            // Silent catch - no need to log mouse move errors
           }
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
       } catch (error) {
@@ -169,21 +210,17 @@ const SatelliteViewer = () => {
   const addSatellite = () => {
     if (!viewerRef.current) return;
     
-    // For demo purposes, create a random satellite
     const name = "Satellite " + Math.floor(Math.random() * 1000);
     
-    // Random orbit parameters (simplified)
-    const semiMajorAxis = 6700000 + Math.random() * 2000000; // in meters
+    const semiMajorAxis = 6700000 + Math.random() * 2000000;
     const eccentricity = Math.random() * 0.2;
-    const inclination = Math.random() * 180; // in degrees
-    const rightAscension = Math.random() * 360; // in degrees
-    const argumentOfPeriapsis = Math.random() * 360; // in degrees
-    const meanAnomaly = Math.random() * 360; // in degrees
+    const inclination = Math.random() * 180;
+    const rightAscension = Math.random() * 360;
+    const argumentOfPeriapsis = Math.random() * 360;
+    const meanAnomaly = Math.random() * 360;
     
-    // Generate random color for this satellite
     const color = Cesium.Color.fromRandom({ alpha: 1.0 });
     
-    // Create orbital parameters
     const orbitalParameters = {
       semiMajorAxis,
       eccentricity,
@@ -193,10 +230,8 @@ const SatelliteViewer = () => {
       meanAnomaly
     };
     
-    // Generate orbit points
     const points = generateOrbitPoints(orbitalParameters);
     
-    // Create the orbit path entity
     const orbitEntity = viewerRef.current.entities.add({
       name: name + " Orbit",
       position: points[0],
@@ -220,7 +255,6 @@ const SatelliteViewer = () => {
       }
     });
     
-    // Create the satellite entity using a box instead of an external model
     const satelliteEntity = viewerRef.current.entities.add({
       name,
       position: points[0],
@@ -257,7 +291,6 @@ const SatelliteViewer = () => {
       const cameraPosition = camera.position;
       const cameraDirection = camera.direction;
       
-      // Move the camera closer by 25%
       const moveDistance = Cesium.Cartesian3.magnitude(cameraPosition) * 0.25;
       const movementVector = Cesium.Cartesian3.multiplyByScalar(
         cameraDirection, 
@@ -289,7 +322,6 @@ const SatelliteViewer = () => {
       const cameraPosition = camera.position;
       const cameraDirection = camera.direction;
       
-      // Move the camera farther by 25%
       const moveDistance = Cesium.Cartesian3.magnitude(cameraPosition) * 0.25;
       const movementVector = Cesium.Cartesian3.multiplyByScalar(
         cameraDirection, 
@@ -327,7 +359,68 @@ const SatelliteViewer = () => {
       top: 0,
       left: 0
     }}>
-      <div id="cesiumContainer" ref={cesiumContainerRef} className={styles.cesiumContainer}></div>
+      {/* TreeView Toggle Button */}
+      <button 
+        onClick={toggleTreeview}
+        className={styles.treeviewToggle}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          left: showTreeview ? '260px' : '10px',
+          zIndex: 100,
+          padding: '5px 10px',
+          background: '#333',
+          color: 'white',
+          border: 'none',
+          borderRadius: '3px',
+          cursor: 'pointer',
+          transition: 'left 0.3s'
+        }}
+      >
+        {showTreeview ? '<<' : '>>'}
+      </button>
+      
+      {/* Treeview Panel */}
+      <div 
+        className={styles.treeviewPanel}
+        style={{
+          position: 'absolute',
+          width: '250px',
+          height: '100%',
+          backgroundColor: 'rgba(30, 30, 30, 0.85)',
+          color: 'white',
+          left: showTreeview ? '0' : '-250px',
+          top: 0,
+          padding: '10px',
+          boxSizing: 'border-box',
+          zIndex: 99,
+          transition: 'left 0.3s',
+          overflow: 'auto'
+        }}
+      >
+        <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Satellite Data</h3>
+        <div className={styles.treeview}>
+          <TreeNode node={satelliteTree} />
+        </div>
+      </div>
+      
+      <div 
+        id="cesiumContainer" 
+        ref={cesiumContainerRef} 
+        className={styles.cesiumContainer}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden',
+          width: '100%',
+          height: '100%'
+        }}
+      ></div>
     </div>
   );
 };
