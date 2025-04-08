@@ -7,13 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "setup": "node setup.js"
+    "setup": "node setup.js",
+    "postinstall": "npm rebuild sqlite3 --build-from-source"
   },
   "dependencies": {
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "cesium": "1.104.0"
+    "cesium": "1.104.0",
+    "better-sqlite3": "^8.5.0",
+    "sqlite": "^4.1.2",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "@types/node": "^20.8.9",
@@ -21,6 +25,7 @@
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.52.0",
     "eslint-config-next": "^14.0.0",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "node-gyp": "^9.4.0"
   }
 }

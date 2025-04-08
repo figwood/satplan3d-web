@@ -18,7 +18,24 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
+    // Handle native modules
+    if (!isServer) {
+      // Don't resolve 'fs', 'net' on the client side
+      config.resolve.fallback = {
+        fs: false,
+        path: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
+
+    // Copy assets and setup for Cesium
+    if (!config.plugins) {
+      config.plugins = [];
+    }
+
     config.plugins.push(
       new CopyWebpackPlugin({
         patterns: [
@@ -55,7 +72,11 @@ const nextConfig = {
     );
 
     return config;
-  }
+  },
+  // Add this to deal with potential SQLite buffer size issues
+  experimental: {
+    serverComponentsExternalPackages: ['better-sqlite3', 'sqlite3'],
+  },
 };
 
 module.exports = nextConfig;
