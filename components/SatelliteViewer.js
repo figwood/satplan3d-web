@@ -3,11 +3,64 @@ import * as Cesium from 'cesium';
 import { Tree } from 'antd';
 import styles from '../styles/SatelliteViewer.module.css';
 
-// 从轨道点数据生成 Cesium 位置数组
+// 从轨道点数据生成 Cesium 位置数组，遇到经度跨越 180 度时停止
 const generatePositionsFromTrackPoints = (trackPoints) => {
-  return trackPoints.map(point => {
-    return Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt);
-  });
+  const points = [];
+  
+  for (let i = 0; i < trackPoints.length - 1; i++) {
+    const point = trackPoints[i];
+    points.push(Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt));
+    
+    const nextPoint = trackPoints[i + 1];
+    // 检查是否跨越 180 度经线
+    if (Math.abs(nextPoint.lon - point.lon) > 180) {
+      // 如果跨越了 180 度经线，就停止添加点
+      break;
+    }
+  }
+  
+  return points;
+};
+
+// 计算经过一点且与速度矢量相切的大圆上的点
+const generateGreatCirclePoints = (point, velocity) => {
+  // 将经纬度转换为笛卡尔坐标
+  const position = Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt);
+  const vel = new Cesium.Cartesian3(point.vx, point.vy, point.vz);
+  
+  // 计算法向量（位置矢量和速度矢量的叉乘）
+  const normal = Cesium.Cartesian3.cross(position, vel, new Cesium.Cartesian3());
+  Cesium.Cartesian3.normalize(normal, normal);
+  
+  // 生成大圆上的点
+  const points = [];
+  const steps = 360;
+  for (let i = 0; i < steps; i++) {
+    const angle = (i * 2 * Math.PI) / steps;
+    
+    // 计算大圆上的点：R = P*cos(θ) + (N×P)*sin(θ)
+    // 其中 P 是初始点，N 是法向量，θ 是角度
+    const pos = new Cesium.Cartesian3();
+    const cross = Cesium.Cartesian3.cross(normal, position, new Cesium.Cartesian3());
+    Cesium.Cartesian3.normalize(cross, cross);
+    
+    const p1 = Cesium.Cartesian3.multiplyByScalar(
+      Cesium.Cartesian3.normalize(position, new Cesium.Cartesian3()),
+      Math.cos(angle),
+      new Cesium.Cartesian3()
+    );
+    const p2 = Cesium.Cartesian3.multiplyByScalar(
+      cross,
+      Math.sin(angle),
+      new Cesium.Cartesian3()
+    );
+    
+    Cesium.Cartesian3.add(p1, p2, pos);
+    Cesium.Cartesian3.multiplyByScalar(pos, Cesium.Cartesian3.magnitude(position), pos);
+    points.push(pos);
+  }
+  
+  return points;
 };
 
 const generateOrbitPoints = (orbitalElements) => {
@@ -98,9 +151,6 @@ const SatelliteViewer = () => {
     
     // Clear existing satellites first
     viewerRef.current.entities.removeAll();
-
-    // 创建存储所有轨道点的数组和对应的颜色
-    let allTrackData = [];
     
     // Add checked satellites
     for (const node of info.checkedNodes) {
@@ -109,44 +159,31 @@ const SatelliteViewer = () => {
         
         // Fetch track points for this satellite
         const trackPoints = await fetchTrackPoints(noard_id);
-        if (!trackPoints) continue;
+        if (!trackPoints || trackPoints.length === 0) continue;
         
-        const points = generatePositionsFromTrackPoints(trackPoints);
         const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
-        allTrackData.push({ points, color });
+        const points = generatePositionsFromTrackPoints(trackPoints);
         
-        // Get start and stop times from the first and last track points
-        const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
-        const stopTime = Cesium.JulianDate.fromDate(new Date(trackPoints[trackPoints.length - 1].time * 1000));
-        
-        const orbitEntity = viewerRef.current.entities.add({
+        // 添加轨道线
+        viewerRef.current.entities.add({
           name: name + " Orbit",
-          path: {
-            material: new Cesium.PolylineGlowMaterialProperty({
-              glowPower: 0.2,
-              color: color
-            }),
+          polyline: {
+            positions: points,
             width: 2,
-            leadTime: 0,
-            trailTime: 60 * 60,
-            resolution: 120
-          },
-          availability: new Cesium.TimeIntervalCollection([new Cesium.TimeInterval({
-            start: startTime,
-            stop: stopTime
-          })]),
-          position: {
-            interpolationAlgorithm: Cesium.LinearApproximation,
-            interpolationDegree: 2,
-            referenceFrame: Cesium.ReferenceFrame.INERTIAL,
-            epoch: startTime,
-            cartesian: points
+            material: color
           }
         });
         
+        // Add satellite entity
+        const satellitePosition = Cesium.Cartesian3.fromDegrees(
+          trackPoints[0].lon, 
+          trackPoints[0].lat, 
+          trackPoints[0].alt
+        );
+        
         const satelliteEntity = viewerRef.current.entities.add({
           name: name,
-          position: points[0],
+          position: satellitePosition,
           box: {
             dimensions: new Cesium.Cartesian3(500, 500, 500),
             material: color,
@@ -176,6 +213,8 @@ const SatelliteViewer = () => {
         });
 
         // Update clock settings
+        const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
+        const stopTime = Cesium.JulianDate.fromDate(new Date(trackPoints[trackPoints.length - 1].time * 1000));
         viewerRef.current.clock.startTime = startTime;
         viewerRef.current.clock.stopTime = stopTime;
         viewerRef.current.clock.currentTime = startTime;
@@ -183,17 +222,6 @@ const SatelliteViewer = () => {
         viewerRef.current.clock.shouldAnimate = true;
         viewerRef.current.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
       }
-    }
-
-    // 如果有轨道点，添加连接所有点的线段
-    for (const { points, color } of allTrackData) {
-      viewerRef.current.entities.add({
-        polyline: {
-          positions: points,
-          width: 1,
-          material: color.withAlpha(0.4) // 使用半透明的实线
-        }
-      });
     }
   };
 
