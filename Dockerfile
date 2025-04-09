@@ -1,7 +1,15 @@
 # 构建阶段
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /app
+
+# 添加构建依赖
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
 # 安装构建依赖
 COPY package*.json ./
@@ -14,7 +22,7 @@ COPY . .
 RUN npm run build
 
 # 生产阶段
-FROM node:18-alpine AS runner
+FROM node:23.3.0-slim AS runner
 
 WORKDIR /app
 
@@ -27,9 +35,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
 # 添加非 root 用户
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-RUN chown -R nextjs:nodejs /app
+RUN groupadd -g 1001 nodejs && \
+    useradd -m -u 1001 -g nodejs nextjs && \
+    chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
