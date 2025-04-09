@@ -60,6 +60,7 @@ const SatelliteViewer = () => {
   const [cameraHeight, setCameraHeight] = useState(null);
   const [showTreeview, setShowTreeview] = useState(false);
   const [satelliteData, setSatelliteData] = useState(null);
+  const [allTrackPoints, setAllTrackPoints] = useState([]);
 
   const fetchSatelliteData = async () => {
     try {
@@ -80,7 +81,8 @@ const SatelliteViewer = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error) {
       console.error('Error fetching track points:', error);
       return null;
@@ -96,6 +98,9 @@ const SatelliteViewer = () => {
     
     // Clear existing satellites first
     viewerRef.current.entities.removeAll();
+
+    // 创建存储所有轨道点的数组和对应的颜色
+    let allTrackData = [];
     
     // Add checked satellites
     for (const node of info.checkedNodes) {
@@ -108,6 +113,7 @@ const SatelliteViewer = () => {
         
         const points = generatePositionsFromTrackPoints(trackPoints);
         const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+        allTrackData.push({ points, color });
         
         // Get start and stop times from the first and last track points
         const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
@@ -116,7 +122,10 @@ const SatelliteViewer = () => {
         const orbitEntity = viewerRef.current.entities.add({
           name: name + " Orbit",
           path: {
-            material: color,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.2,
+              color: color
+            }),
             width: 2,
             leadTime: 0,
             trailTime: 60 * 60,
@@ -136,25 +145,33 @@ const SatelliteViewer = () => {
         });
         
         const satelliteEntity = viewerRef.current.entities.add({
-          name: name, // 只使用卫星名称
+          name: name,
           position: points[0],
           box: {
             dimensions: new Cesium.Cartesian3(500, 500, 500),
-            material: color
+            material: color,
+            outline: true,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 1
           },
           point: {
-            pixelSize: 10,
+            pixelSize: 8,
             color: color,
             outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 2
+            outlineWidth: 1
           },
           label: {
-            text: name, // 只使用卫星名称
+            text: name,
             font: '12pt sans-serif',
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            fillColor: color,
             outlineWidth: 2,
+            outlineColor: Cesium.Color.BLACK,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -10)
+            pixelOffset: new Cesium.Cartesian2(0, -10),
+            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+            showBackground: true,
+            backgroundColor: new Cesium.Color(0, 0, 0, 0.6)
           }
         });
 
@@ -162,10 +179,21 @@ const SatelliteViewer = () => {
         viewerRef.current.clock.startTime = startTime;
         viewerRef.current.clock.stopTime = stopTime;
         viewerRef.current.clock.currentTime = startTime;
-        viewerRef.current.clock.multiplier = 60; // Speed up time
+        viewerRef.current.clock.multiplier = 60;
         viewerRef.current.clock.shouldAnimate = true;
         viewerRef.current.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
       }
+    }
+
+    // 如果有轨道点，添加连接所有点的线段
+    for (const { points, color } of allTrackData) {
+      viewerRef.current.entities.add({
+        polyline: {
+          positions: points,
+          width: 1,
+          material: color.withAlpha(0.4) // 使用半透明的实线
+        }
+      });
     }
   };
 
