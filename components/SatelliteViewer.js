@@ -9,12 +9,33 @@ const SatelliteViewer = () => {
   const [cameraHeight, setCameraHeight] = useState(null);
   const [debugMessages, setDebugMessages] = useState([]);
   const [showTreeview, setShowTreeview] = useState(false); // State to toggle treeview visibility
+  const [satelliteData, setSatelliteData] = useState(null); // State to store satellite data
   
   // Helper function to add debug messages
   const addDebug = (message) => {
     console.log(message);
     setDebugMessages(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
+
+  // Fetch satellite data from backend
+  const fetchSatelliteData = async () => {
+    try {
+      const response = await fetch('/api/satellites');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setSatelliteData(data);
+      addDebug("Successfully fetched satellite data");
+    } catch (error) {
+      addDebug(`Failed to fetch satellite data: ${error.message}`);
+      console.error('Error fetching satellite data:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSatelliteData();
+  }, []);
 
   // Tree structure for the satellites
   const satelliteTree = {
@@ -400,7 +421,11 @@ const SatelliteViewer = () => {
       >
         <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Satellite Data</h3>
         <div className={styles.treeview}>
-          <TreeNode node={satelliteTree} />
+          {satelliteData ? (
+            <TreeNode node={satelliteData} />
+          ) : (
+            <p>Loading satellite data...</p>
+          )}
         </div>
       </div>
       

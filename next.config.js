@@ -75,7 +75,7 @@ const nextConfig = {
   },
   // Add this to deal with potential SQLite buffer size issues
   experimental: {
-    serverComponentsExternalPackages: ['better-sqlite3', 'sqlite3'],
+    serverComponentsExternalPackages: ['sqlite3'],
   },
 };
 

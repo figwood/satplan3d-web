@@ -162,11 +162,13 @@
 .treeNodeLabel {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  cursor: pointer;
 }
 
 .treeNodeLabel input[type="checkbox"] {
-  margin-right: 5px;
+  margin: 0;
+  cursor: pointer;
 }
 
 .treeviewToggle {
@@ -174,6 +176,11 @@
 }
 
 .treeviewPanel {
+  background-color: rgba(30, 30, 30, 0.85);
+  color: white;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
   transition: left 0.3s;
 }
 
