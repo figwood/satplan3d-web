@@ -1,31 +1,33 @@
 export default async function handler(req, res) {
   try {
-    const response = await fetch(`${process.env.API_URL}/satellites`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const apiUrl = process.env.API_URL;
+    if (!apiUrl) {
+      throw new Error('API_URL not configured');
     }
-    const data = await response.json();
+
+    const response = await fetch(`${apiUrl}/satellites`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data: ${response.statusText}`);
+    }
     
+    const data = await response.json();
+
     // 转换数据结构为树形结构
     const transformData = (satellites) => {
       return {
-        name: "Satellites",
-        checked: false,
+        title: "卫星列表",
+        key: "satellites-root",
         children: satellites.map(satellite => ({
-          name: satellite.name,
-          id: satellite.id,
-          noard_id: satellite.noard_id,
-          hex_color: satellite.hex_color,
-          checked: false,
+          title: satellite.name,
+          key: `satellite-${satellite.id}`,
           children: satellite.sensors.map(sensor => ({
-            name: sensor.name,
-            id: sensor.id,
-            hex_color: sensor.hex_color,
-            resolution: sensor.resolution,
-            width: sensor.width,
-            observe_angle: sensor.observe_angle,
-            init_angle: sensor.init_angle,
-            checked: false
+            title: sensor.name,
+            key: `satellite-${satellite.id}-sensor-${sensor.id}`,
+            isLeaf: true,
+            data: {
+              ...satellite,
+              ...sensor
+            }
           }))
         }))
       };
@@ -34,7 +36,7 @@ export default async function handler(req, res) {
     const transformedData = transformData(data);
     res.status(200).json(transformedData);
   } catch (error) {
-    console.error('Error fetching satellite data:', error);
-    res.status(500).json({ error: 'Failed to fetch satellite data' });
+    console.error('Error processing satellite data:', error);
+    res.status(500).json({ error: error.message || 'Failed to process satellite data' });
   }
 }

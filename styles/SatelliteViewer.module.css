@@ -191,3 +191,29 @@
   height: 100% !important;
   touch-action: none;
 }
+
+.antTree {
+  background: transparent !important;
+}
+
+.antTree :global(.ant-tree-node-content-wrapper) {
+  color: white !important;
+}
+
+.antTree :global(.ant-tree-node-content-wrapper:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.antTree :global(.ant-tree-node-selected) {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.antTree :global(.ant-tree-checkbox-inner) {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.antTree :global(.ant-tree-checkbox-checked .ant-tree-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}

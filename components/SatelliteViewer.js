@@ -1,23 +1,66 @@
 import { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
+import { Tree } from 'antd';
 import styles from '../styles/SatelliteViewer.module.css';
+
+// 从轨道点数据生成 Cesium 位置数组
+const generatePositionsFromTrackPoints = (trackPoints) => {
+  return trackPoints.map(point => {
+    return Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt);
+  });
+};
+
+const generateOrbitPoints = (orbitalElements) => {
+  const { semiMajorAxis, eccentricity, inclination, 
+          rightAscension, argumentOfPeriapsis, meanAnomaly } = orbitalElements;
+  
+  const points = [];
+  const GM = 3.986004418e14; // Earth's gravitational constant (m^3/s^2)
+  const period = 2 * Math.PI * Math.sqrt(Math.pow(semiMajorAxis, 3) / GM);
+  
+  // Convert angles to radians
+  const incRad = Cesium.Math.toRadians(inclination);
+  const raRad = Cesium.Math.toRadians(rightAscension);
+  const argPeriRad = Cesium.Math.toRadians(argumentOfPeriapsis);
+  const meanAnomalyRad = Cesium.Math.toRadians(meanAnomaly);
+  
+  // Generate points for one complete orbit
+  const steps = 360;
+  for (let i = 0; i < steps; i++) {
+    const E = meanAnomalyRad + (i / steps) * 2 * Math.PI;
+    
+    // Calculate position in orbital plane
+    const xOrbit = semiMajorAxis * (Math.cos(E) - eccentricity);
+    const yOrbit = semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity) * Math.sin(E);
+    
+    // Convert to Earth-centered inertial frame
+    const cosRA = Math.cos(raRad);
+    const sinRA = Math.sin(raRad);
+    const cosInc = Math.cos(incRad);
+    const sinInc = Math.sin(incRad);
+    const cosArgPeri = Math.cos(argPeriRad);
+    const sinArgPeri = Math.sin(argPeriRad);
+    
+    const x = (cosRA * cosArgPeri - sinRA * sinArgPeri * cosInc) * xOrbit + 
+             (-cosRA * sinArgPeri - sinRA * cosArgPeri * cosInc) * yOrbit;
+    const y = (sinRA * cosArgPeri + cosRA * sinArgPeri * cosInc) * xOrbit + 
+             (-sinRA * sinArgPeri + cosRA * cosArgPeri * cosInc) * yOrbit;
+    const z = (sinArgPeri * sinInc) * xOrbit + (cosArgPeri * sinInc) * yOrbit;
+    
+    points.push(new Cesium.Cartesian3(x, y, z));
+  }
+  
+  return points;
+};
 
 const SatelliteViewer = () => {
   const viewerRef = useRef(null);
   const cesiumContainerRef = useRef(null);
-  const creditsRef = useRef(null);  // Add new ref for credits
+  const creditsRef = useRef(null);
   const [cameraHeight, setCameraHeight] = useState(null);
-  const [debugMessages, setDebugMessages] = useState([]);
-  const [showTreeview, setShowTreeview] = useState(false); // State to toggle treeview visibility
-  const [satelliteData, setSatelliteData] = useState(null); // State to store satellite data
-  
-  // Helper function to add debug messages
-  const addDebug = (message) => {
-    console.log(message);
-    setDebugMessages(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
-  };
+  const [showTreeview, setShowTreeview] = useState(false);
+  const [satelliteData, setSatelliteData] = useState(null);
 
-  // Fetch satellite data from backend
   const fetchSatelliteData = async () => {
     try {
       const response = await fetch('/api/satellites');
@@ -26,10 +69,21 @@ const SatelliteViewer = () => {
       }
       const data = await response.json();
       setSatelliteData(data);
-      addDebug("Successfully fetched satellite data");
     } catch (error) {
-      addDebug(`Failed to fetch satellite data: ${error.message}`);
       console.error('Error fetching satellite data:', error);
+    }
+  };
+
+  const fetchTrackPoints = async (noard_id) => {
+    try {
+      const response = await fetch(`/api/track-points?noard_id=${noard_id}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching track points:', error);
+      return null;
     }
   };
 
@@ -37,64 +91,84 @@ const SatelliteViewer = () => {
     fetchSatelliteData();
   }, []);
 
-  // Tree structure for the satellites
-  const satelliteTree = {
-    name: "Satellites",
-    checked: false,
-    children: [
-      {
-        name: "HJ-1A",
-        checked: false,
-        children: [
-          { name: "CCD1", checked: false },
-          { name: "CCD2", checked: false }
-        ]
-      },
-      {
-        name: "HJ-1B",
-        checked: false,
-        children: [
-          { name: "CCD1", checked: false },
-          { name: "CCD2", checked: false }
-        ]
-      }
-    ]
-  };
-  
-  // Function to handle checkbox change
-  const handleCheckboxChange = (path) => {
-    console.log("Checkbox changed:", path);
-    // Implement the checkbox state management here
-  };
-  
-  // Component for rendering tree nodes
-  const TreeNode = ({ node, level = 0, path = [] }) => {
-    const currentPath = [...path, node.name];
+  const onCheck = async (checkedKeys, info) => {
+    if (!viewerRef.current) return;
     
-    return (
-      <div className={styles.treeNode} style={{ paddingLeft: `${level * 20}px` }}>
-        <label className={styles.treeNodeLabel}>
-          <input 
-            type="checkbox" 
-            checked={node.checked || false}
-            onChange={() => handleCheckboxChange(currentPath)}
-          />
-          {node.name}
-        </label>
+    // Clear existing satellites first
+    viewerRef.current.entities.removeAll();
+    
+    // Add checked satellites
+    for (const node of info.checkedNodes) {
+      if (node.isLeaf && node.data) {
+        const { name, noard_id, hex_color } = node.data;
         
-        {node.children && node.children.map((child, index) => (
-          <TreeNode 
-            key={index} 
-            node={child} 
-            level={level + 1} 
-            path={currentPath}
-          />
-        ))}
-      </div>
-    );
+        // Fetch track points for this satellite
+        const trackPoints = await fetchTrackPoints(noard_id);
+        if (!trackPoints) continue;
+        
+        const points = generatePositionsFromTrackPoints(trackPoints);
+        const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+        
+        // Get start and stop times from the first and last track points
+        const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
+        const stopTime = Cesium.JulianDate.fromDate(new Date(trackPoints[trackPoints.length - 1].time * 1000));
+        
+        const orbitEntity = viewerRef.current.entities.add({
+          name: name + " Orbit",
+          path: {
+            material: color,
+            width: 2,
+            leadTime: 0,
+            trailTime: 60 * 60,
+            resolution: 120
+          },
+          availability: new Cesium.TimeIntervalCollection([new Cesium.TimeInterval({
+            start: startTime,
+            stop: stopTime
+          })]),
+          position: {
+            interpolationAlgorithm: Cesium.LinearApproximation,
+            interpolationDegree: 2,
+            referenceFrame: Cesium.ReferenceFrame.INERTIAL,
+            epoch: startTime,
+            cartesian: points
+          }
+        });
+        
+        const satelliteEntity = viewerRef.current.entities.add({
+          name,
+          position: points[0],
+          box: {
+            dimensions: new Cesium.Cartesian3(500, 500, 500),
+            material: color
+          },
+          point: {
+            pixelSize: 10,
+            color: color,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2
+          },
+          label: {
+            text: name,
+            font: '12pt sans-serif',
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            outlineWidth: 2,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -10)
+          }
+        });
+
+        // Update clock settings
+        viewerRef.current.clock.startTime = startTime;
+        viewerRef.current.clock.stopTime = stopTime;
+        viewerRef.current.clock.currentTime = startTime;
+        viewerRef.current.clock.multiplier = 60; // Speed up time
+        viewerRef.current.clock.shouldAnimate = true;
+        viewerRef.current.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+      }
+    }
   };
-  
-  // Toggle treeview visibility
+
   const toggleTreeview = () => {
     setShowTreeview(!showTreeview);
   };
@@ -105,18 +179,6 @@ const SatelliteViewer = () => {
       Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZTczYTJlMi0yYzE4LTQ4YTgtOWI2Zi1mMTg2YTg1ZWE1NjEiLCJpZCI6MjkxNTQwLCJpYXQiOjE3NDQwMDk5OTZ9.k1W2lo4Qh-AgmN9-ZM87Rsf1BZlr72QGcKgKoClBjO0';
       
       try {
-        addDebug("Initializing Cesium with MBTiles imagery provider");
-        
-        fetch('/api/mbtiles-info')
-          .then(res => res.json())
-          .then(data => {
-            addDebug(`MBTiles info loaded: ${data.file ? data.file.sizeInMB + 'MB' : 'Not available'}`);
-            if (data.metadata) {
-              addDebug(`MBTiles format: ${data.metadata.format || 'unknown'}, min zoom: ${data.metadata.minzoom || '?'}, max zoom: ${data.metadata.maxzoom || '?'}`);
-            }
-          })
-          .catch(err => addDebug(`Failed to load MBTiles info: ${err.message}`));
-        
         const rectangle = Cesium.Rectangle.fromDegrees(-180, -90, 180, 90);
         
         const creditsContainer = document.createElement('div');
@@ -167,56 +229,20 @@ const SatelliteViewer = () => {
             roll: 0
           }
         });
-        
-        const toolbar = document.querySelector('.cesium-viewer-toolbar');
-        
-        const zoomInButton = document.createElement('button');
-        zoomInButton.className = 'cesium-button cesium-toolbar-button';
-        zoomInButton.innerHTML = '+';
-        zoomInButton.title = 'Zoom In';
-        zoomInButton.onclick = () => {
-          zoomIn();
-        };
-        
-        const zoomOutButton = document.createElement('button');
-        zoomOutButton.className = 'cesium-button cesium-toolbar-button';
-        zoomOutButton.innerHTML = '−';
-        zoomOutButton.title = 'Zoom Out';
-        zoomOutButton.onclick = () => {
-          zoomOut();
-        };
-        
-        setTimeout(() => {
-          if (toolbar) {
-            const firstChild = toolbar.firstChild;
-            toolbar.insertBefore(zoomInButton, firstChild);
-            toolbar.insertBefore(zoomOutButton, firstChild);
-          }
-        }, 500);
-        
-        viewer.scene.globe.tileLoadProgressEvent.addEventListener((queuedTileCount) => {
-          if (queuedTileCount === 0) {
-            viewer.scene.requestRender();
-          }
-        });
 
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         handler.setInputAction((movement) => {
           if (!viewerRef.current) return;
-          
           try {
             const cartesian = viewer.camera.pickEllipsoid(movement.endPosition);
             if (cartesian) {
               const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-              const lat = Cesium.Math.toDegrees(cartographic.latitude);
-              const lon = Cesium.Math.toDegrees(cartographic.longitude);
               setCameraHeight(viewer.camera.positionCartographic.height);
             }
           } catch (e) {
           }
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
       } catch (error) {
-        addDebug(`ERROR initializing Cesium viewer: ${error.message}`);
         console.error('Error initializing Cesium viewer:', error);
       }
       
@@ -380,7 +406,6 @@ const SatelliteViewer = () => {
       top: 0,
       left: 0
     }}>
-      {/* TreeView Toggle Button */}
       <button 
         onClick={toggleTreeview}
         className={styles.treeviewToggle}
@@ -401,7 +426,6 @@ const SatelliteViewer = () => {
         {showTreeview ? '<<' : '>>'}
       </button>
       
-      {/* Treeview Panel */}
       <div 
         className={styles.treeviewPanel}
         style={{
@@ -422,7 +446,18 @@ const SatelliteViewer = () => {
         <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Satellite Data</h3>
         <div className={styles.treeview}>
           {satelliteData ? (
-            <TreeNode node={satelliteData} />
+            <Tree
+              checkable
+              onCheck={onCheck}
+              treeData={[satelliteData]}
+              defaultExpandAll={true}
+              className={styles.antTree}
+              fieldNames={{
+                title: 'title',
+                key: 'key',
+                children: 'children'
+              }}
+            />
           ) : (
             <p>Loading satellite data...</p>
           )}
