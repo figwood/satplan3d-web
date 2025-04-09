@@ -136,7 +136,7 @@ const SatelliteViewer = () => {
         });
         
         const satelliteEntity = viewerRef.current.entities.add({
-          name,
+          name: name, // 只使用卫星名称
           position: points[0],
           box: {
             dimensions: new Cesium.Cartesian3(500, 500, 500),
@@ -149,7 +149,7 @@ const SatelliteViewer = () => {
             outlineWidth: 2
           },
           label: {
-            text: name,
+            text: name, // 只使用卫星名称
             font: '12pt sans-serif',
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             outlineWidth: 2,

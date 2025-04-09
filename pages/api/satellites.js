@@ -26,7 +26,8 @@ export default async function handler(req, res) {
             isLeaf: true,
             data: {
               ...satellite,
-              ...sensor
+              sensorName: sensor.name,
+              hex_color: sensor.hex_color
             }
           }))
         }))
