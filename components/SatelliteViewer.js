@@ -9,7 +9,8 @@ const generatePositionsFromTrackPoints = (trackPoints) => {
   
   for (let i = 0; i < trackPoints.length - 1; i++) {
     const point = trackPoints[i];
-    points.push(Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt));
+    // 将高度从千米转换为米
+    points.push(Cesium.Cartesian3.fromDegrees(point.lon, point.lat, point.alt * 1000));
     
     const nextPoint = trackPoints[i + 1];
     // 检查是否跨越 180 度经线
@@ -114,6 +115,8 @@ const SatelliteViewer = () => {
   const [showTreeview, setShowTreeview] = useState(false);
   const [satelliteData, setSatelliteData] = useState(null);
   const [allTrackPoints, setAllTrackPoints] = useState([]);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [halfSelectedKeys, setHalfSelectedKeys] = useState([]);
 
   const fetchSatelliteData = async () => {
     try {
@@ -142,6 +145,20 @@ const SatelliteViewer = () => {
     }
   };
 
+  const fetchPathPoints = async (noard_id, sensor_name) => {
+    try {
+      const response = await fetch(`/api/path-points?noard_id=${noard_id}&sensor_name=${sensor_name}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching path points:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     fetchSatelliteData();
   }, []);
@@ -152,81 +169,196 @@ const SatelliteViewer = () => {
     // Clear existing satellites first
     viewerRef.current.entities.removeAll();
     
-    // Add checked satellites
+    // Add checked satellites and sensors
     for (const node of info.checkedNodes) {
       if (node.isLeaf && node.data) {
-        const { name, noard_id, hex_color } = node.data;
+        const { name, noard_id, hex_color, sensorName } = node.data;
         
-        // Fetch track points for this satellite
-        const trackPoints = await fetchTrackPoints(noard_id);
-        if (!trackPoints || trackPoints.length === 0) continue;
+        // 如果是叶子节点，说明是传感器节点
+        const isSensor = node.isLeaf;
         
-        const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
-        const points = generatePositionsFromTrackPoints(trackPoints);
+        if (isSensor) {
+          // Fetch path points for this sensor
+          const pathPoints = await fetchPathPoints(noard_id, sensorName);
+          if (!pathPoints || pathPoints.length === 0) continue;
+          
+          const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+          
+          // Add line connecting all (lon1, lat1) points
+          const points1 = pathPoints.map(point => 
+            Cesium.Cartesian3.fromDegrees(point.lon1, point.lat1, 10000)
+          );
+          viewerRef.current.entities.add({
+            name: `${sensorName} Path 1`,
+            polyline: {
+              positions: points1,
+              width: 2,
+              material: color
+            }
+          });
+
+          // Add line connecting all (lon2, lat2) points
+          const points2 = pathPoints.map(point => 
+            Cesium.Cartesian3.fromDegrees(point.lon2, point.lat2, 10000)
+          );
+          viewerRef.current.entities.add({
+            name: `${sensorName} Path 2`,
+            polyline: {
+              positions: points2,
+              width: 2,
+              material: color
+            }
+          });
+        } else {
+          // Handle regular satellite visualization
+          const trackPoints = await fetchTrackPoints(noard_id);
+          if (!trackPoints || trackPoints.length === 0) continue;
+          
+          const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+          const points = generatePositionsFromTrackPoints(trackPoints);
+          
+          // Add orbit line
+          viewerRef.current.entities.add({
+            name: name + " Orbit",
+            polyline: {
+              positions: points,
+              width: 2,
+              material: color
+            }
+          });
+          
+          // Add satellite entity
+          const satellitePosition = Cesium.Cartesian3.fromDegrees(
+            trackPoints[0].lon, 
+            trackPoints[0].lat, 
+            trackPoints[0].alt * 1000
+          );
+          
+          viewerRef.current.entities.add({
+            name: name,
+            position: satellitePosition,
+            box: {
+              dimensions: new Cesium.Cartesian3(500, 500, 500),
+              material: color,
+              outline: true,
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 1
+            },
+            point: {
+              pixelSize: 8,
+              color: color,
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 1
+            },
+            label: {
+              text: name,
+              font: '12pt sans-serif',
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              fillColor: color,
+              outlineWidth: 2,
+              outlineColor: Cesium.Color.BLACK,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              pixelOffset: new Cesium.Cartesian2(0, -10),
+              horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+              showBackground: true,
+              backgroundColor: new Cesium.Color(0, 0, 0, 0.6)
+            }
+          });
+        }
+
+        // Update clock settings if we have track points
+        if (!isSensor) {  // Only update clock for satellites
+          const trackPoints = await fetchTrackPoints(noard_id);
+          if (trackPoints && trackPoints.length > 0) {
+            const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
+            const stopTime = Cesium.JulianDate.fromDate(new Date(trackPoints[trackPoints.length - 1].time * 1000));
+            viewerRef.current.clock.startTime = startTime;
+            viewerRef.current.clock.stopTime = stopTime;
+            viewerRef.current.clock.currentTime = startTime;
+            viewerRef.current.clock.multiplier = 60;
+            viewerRef.current.clock.shouldAnimate = true;
+            viewerRef.current.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+          }
+        }
+      }
+    }
+  };
+
+  const onSelect = async (selectedKeys, info) => {
+    if (!viewerRef.current || !info.node || !info.node.data) return;
+    
+    const { key } = info.node;
+    
+    if (halfSelectedKeys.includes(key)) {
+      // 如果节点已经在半选择状态，则完全选中
+      setHalfSelectedKeys(halfSelectedKeys.filter(k => k !== key));
+      setSelectedNode(info.node);
+      
+      const { noard_id, sensorName } = info.node.data;
+      
+      // 使用 isLeaf 判断是否为传感器节点
+      if (info.node.isLeaf) {
+        // Fetch path points for this sensor
+        const pathPoints = await fetchPathPoints(noard_id, sensorName);
+        if (!pathPoints || pathPoints.length === 0) return;
         
-        // 添加轨道线
+        // Clear previous path lines
+        const entities = viewerRef.current.entities.values;
+        for (let i = entities.length - 1; i >= 0; i--) {
+          const entity = entities[i];
+          if (entity.name && (entity.name.includes('Path 1') || entity.name.includes('Path 2'))) {
+            viewerRef.current.entities.remove(entity);
+          }
+        }
+        
+        const color = Cesium.Color.fromCssColorString(info.node.data.hex_color || '#FFFFFF');
+        
+        // Add line connecting all (lon1, lat1) points
+        const points1 = pathPoints.map(point => 
+          Cesium.Cartesian3.fromDegrees(point.lon1, point.lat1, 10000)
+        );
         viewerRef.current.entities.add({
-          name: name + " Orbit",
+          name: `${sensorName} Path 1`,
           polyline: {
-            positions: points,
+            positions: points1,
             width: 2,
             material: color
           }
         });
-        
-        // Add satellite entity
-        const satellitePosition = Cesium.Cartesian3.fromDegrees(
-          trackPoints[0].lon, 
-          trackPoints[0].lat, 
-          trackPoints[0].alt
+
+        // Add line connecting all (lon2, lat2) points
+        const points2 = pathPoints.map(point => 
+          Cesium.Cartesian3.fromDegrees(point.lon2, point.lat2, 10000)
         );
-        
-        const satelliteEntity = viewerRef.current.entities.add({
-          name: name,
-          position: satellitePosition,
-          box: {
-            dimensions: new Cesium.Cartesian3(500, 500, 500),
-            material: color,
-            outline: true,
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 1
-          },
-          point: {
-            pixelSize: 8,
-            color: color,
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 1
-          },
-          label: {
-            text: name,
-            font: '12pt sans-serif',
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            fillColor: color,
-            outlineWidth: 2,
-            outlineColor: Cesium.Color.BLACK,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -10),
-            horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-            showBackground: true,
-            backgroundColor: new Cesium.Color(0, 0, 0, 0.6)
+        viewerRef.current.entities.add({
+          name: `${sensorName} Path 2`,
+          polyline: {
+            positions: points2,
+            width: 2,
+            material: color
           }
         });
-
-        // Update clock settings
-        const startTime = Cesium.JulianDate.fromDate(new Date(trackPoints[0].time * 1000));
-        const stopTime = Cesium.JulianDate.fromDate(new Date(trackPoints[trackPoints.length - 1].time * 1000));
-        viewerRef.current.clock.startTime = startTime;
-        viewerRef.current.clock.stopTime = stopTime;
-        viewerRef.current.clock.currentTime = startTime;
-        viewerRef.current.clock.multiplier = 60;
-        viewerRef.current.clock.shouldAnimate = true;
-        viewerRef.current.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
       }
+    } else {
+      // 第一次点击，设置半选择状态
+      setHalfSelectedKeys([...halfSelectedKeys, key]);
+      setSelectedNode(null);
     }
   };
 
   const toggleTreeview = () => {
     setShowTreeview(!showTreeview);
+  };
+
+  const titleRender = (nodeData) => {
+    return (
+      <span
+        data-half-selected={halfSelectedKeys.includes(nodeData.key)}
+        style={{ display: 'block', padding: '0 4px' }}
+      >
+        {nodeData.title}
+      </span>
+    );
   };
 
   useEffect(() => {
@@ -505,9 +637,12 @@ const SatelliteViewer = () => {
             <Tree
               checkable
               onCheck={onCheck}
+              onSelect={onSelect}
+              selectedKeys={selectedNode ? [selectedNode.key] : []}
               treeData={[satelliteData]}
               defaultExpandAll={true}
-              className={styles.antTree}
+              className={`${styles.antTree} ${styles.customTree}`}
+              titleRender={titleRender}
               fieldNames={{
                 title: 'title',
                 key: 'key',

@@ -217,3 +217,28 @@
   background-color: #1890ff !important;
   border-color: #1890ff !important;
 }
+
+.customTree :global(.ant-tree-node-content-wrapper) {
+  position: relative;
+}
+
+.customTree :global(.ant-tree-node-content-wrapper)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: transparent;
+  transition: background-color 0.3s;
+}
+
+/* 半选择状态下的样式 */
+.customTree :global(.ant-tree-node-content-wrapper[data-half-selected="true"])::after {
+  background: rgba(24, 144, 255, 0.5);
+}
+
+/* 完全选中状态下的样式 */
+.customTree :global(.ant-tree-node-selected)::after {
+  background: #1890ff;
+}
