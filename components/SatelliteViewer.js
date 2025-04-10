@@ -78,32 +78,9 @@ const SatelliteViewer = () => {
    * 处理树节点选择事件
    */
   const onSelect = async (selectedKeys, info) => {
-    if (!viewerRef.current || !info.node || !info.node.data) {
-      return;
-    }
-    
-    // 更新选中节点状态
+    if (!info.node) return;
+    // 只更新选中节点状态
     setSelectedNode(info.node);
-    
-    // 从节点数据中直接获取 noard_id
-    const { noard_id } = info.node.data;
-    
-    if (noard_id) {
-      try {
-        // 直接调用 track-points API
-        const trackResponse = await fetch(`/api/track-points?noard_id=${noard_id}`, {
-          method: 'GET',
-          cache: 'no-store'
-        });
-        
-        // 使用可视化处理类处理节点选择
-        if (visualizerRef.current) {
-          await visualizerRef.current.handleNodeSelect(info.node);
-        }
-      } catch (error) {
-        console.error('处理节点选择时出错:', error);
-      }
-    }
   };
 
   /**
@@ -112,7 +89,7 @@ const SatelliteViewer = () => {
   const onCheck = async (checkedKeys, info) => {
     if (!viewerRef.current || !visualizerRef.current) return;
     
-    // 使用可视化处理类处理节点选中状态变化
+    // 直接使用可视化处理类处理节点选中状态变化
     await visualizerRef.current.handleNodesCheck(info.checkedNodes);
   };
 
