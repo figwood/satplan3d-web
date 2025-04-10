@@ -20,11 +20,28 @@ const SatelliteTree = ({
    * @returns {JSX.Element} 渲染的节点内容
    */
   const titleRender = (nodeData) => {
+    const color = nodeData.data?.hex_color || '#FFFFFF';
+    
     return (
       <span
         data-half-selected={halfSelectedKeys.includes(nodeData.key)}
-        style={{ display: 'block', padding: '0 4px' }}
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: '8px',
+          padding: '0 4px' 
+        }}
       >
+        <span
+          style={{
+            display: 'inline-block',
+            width: '12px',
+            height: '12px',
+            backgroundColor: color,
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '2px'
+          }}
+        />
         {nodeData.title}
       </span>
     );

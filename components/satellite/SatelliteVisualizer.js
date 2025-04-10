@@ -68,24 +68,33 @@ export class SatelliteVisualizer {
     // 添加所有选中的节点
     for (const node of checkedNodes) {
       if (node.data) {
-        const { name, noard_id, hex_color, sensorName } = node.data;
-        const color = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+        const { name, noard_id, hex_color, satellite_hex_color, sensorName } = node.data;
         
         try {
           // 获取轨道点数据
           const trackPoints = await fetchTrackPoints(noard_id);
           if (trackPoints && trackPoints.length > 0) {
             const points = generatePositionsFromTrackPoints(trackPoints);
-            addOrbitPath(this.viewer, points, name, color);
-            addSatelliteEntity(this.viewer, trackPoints[0], name, color);
+            
+            // 轨道始终使用卫星的颜色
+            // 如果是传感器节点，使用 satellite_hex_color
+            // 如果是卫星节点，使用 hex_color
+            const satelliteColor = Cesium.Color.fromCssColorString(
+              satellite_hex_color || hex_color || '#FFFFFF'
+            );
+            
+            addOrbitPath(this.viewer, points, name, satelliteColor);
+            addSatelliteEntity(this.viewer, trackPoints[0], name, satelliteColor);
             updateClockSettings(this.viewer, trackPoints);
           }
 
-          // 如果是传感器节点，获取并显示传感器路径
+          // 如果是传感器节点，显示传感器路径
           if (node.isLeaf && sensorName) {
             const pathPoints = await fetchPathPoints(noard_id, sensorName);
             if (pathPoints && pathPoints.length > 0) {
-              addSensorPaths(this.viewer, pathPoints, sensorName, color);
+              // 传感器路径使用传感器的颜色
+              const sensorColor = Cesium.Color.fromCssColorString(hex_color || '#FFFFFF');
+              addSensorPaths(this.viewer, pathPoints, sensorName, sensorColor);
             }
           }
         } catch (error) {

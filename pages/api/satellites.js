@@ -20,14 +20,21 @@ export default async function handler(req, res) {
         children: satellites.map(satellite => ({
           title: satellite.name,
           key: `satellite-${satellite.id}`,
+          data: {
+            ...satellite,
+            hex_color: satellite.hex_color
+          },
           children: satellite.sensors.map(sensor => ({
             title: sensor.name,
             key: `satellite-${satellite.id}-sensor-${sensor.id}`,
             isLeaf: true,
             data: {
-              ...satellite,
+              id: satellite.id,
+              noard_id: satellite.noard_id,
+              name: satellite.name,
+              satellite_hex_color: satellite.hex_color, // 保存卫星颜色
               sensorName: sensor.name,
-              hex_color: sensor.hex_color
+              hex_color: sensor.hex_color  // 传感器自己的颜色
             }
           }))
         }))
