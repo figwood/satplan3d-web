@@ -2,27 +2,29 @@ import * as Cesium from 'cesium';
 
 /**
  * 初始化 Cesium 查看器
- * @param {HTMLElement} container Cesium 容器元素
- * @param {HTMLElement} creditsContainer 用于隐藏 credits 的容器元素
- * @returns {Cesium.Viewer} 初始化的 Cesium 查看器实例
+ * @param {HTMLElement} container 容器元素
+ * @param {HTMLElement} creditsContainer credits 容器元素
+ * @returns {Cesium.Viewer} Cesium 查看器实例
  */
 export const initCesiumViewer = (container, creditsContainer) => {
-  if (typeof window === 'undefined') return null;
+  if (!container) return null;
   
-  window.CESIUM_BASE_URL = '/cesium/';
+  // 设置 Ion 默认访问令牌
   Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZTczYTJlMi0yYzE4LTQ4YTgtOWI2Zi1mMTg2YTg1ZWE1NjEiLCJpZCI6MjkxNTQwLCJpYXQiOjE3NDQwMDk5OTZ9.k1W2lo4Qh-AgmN9-ZM87Rsf1BZlr72QGcKgKoClBjO0';
   
   try {
-    // 创建范围
-    const rectangle = Cesium.Rectangle.fromDegrees(-180, -90, 180, 90);
-    
+    // 创建全球范围的矩形
+    const rectangle = Cesium.Rectangle.fromDegrees(-180.0, -90.0, 180.0, 90.0);
+    Cesium.Camera.DEFAULT_VIEW_RECTANGLE = rectangle;
+    Cesium.Camera.DEFAULT_VIEW_FACTOR = 0.5;
+
     // 创建查看器
     const viewer = new Cesium.Viewer(container, {
       baseLayerPicker: false,
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       timeline: false,
       animation: false,
-      sceneModePicker: false, // 禁用默认的场景模式选择器
+      sceneModePicker: false,
       navigationHelpButton: false,
       geocoder: false,
       sceneMode: Cesium.SceneMode.SCENE3D,
@@ -30,16 +32,40 @@ export const initCesiumViewer = (container, creditsContainer) => {
       creditContainer: creditsContainer,
       navigationInstructionsInitiallyVisible: false,
       homeButton: true,
-      fullscreenButton: false, // 禁用默认全屏按钮，我们会添加自定义的
+      fullscreenButton: false,
       vrButton: false,
       selectionIndicator: false,
-      infoBox: false
+      infoBox: false,
+      requestRenderMode: true,
+      maximumRenderTimeChange: Infinity,
+      targetFrameRate: 60,
+      contextOptions: {
+        webgl: {
+          alpha: false,
+          antialias: true,
+          preserveDrawingBuffer: false,
+          powerPreference: 'high-performance',
+          failIfMajorPerformanceCaveat: false
+        }
+      }
     });
 
-    // 设置地球和背景颜色
+    // 优化场景设置
+    viewer.scene.globe.enableLighting = false;
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
+    viewer.scene.globe.showGroundAtmosphere = false;
     viewer.scene.globe.showWaterEffect = false;
+    viewer.scene.globe.maximumScreenSpaceError = 2;
+    viewer.scene.globe.tileCacheSize = 1000;
+    viewer.scene.globe.preloadSiblings = true;
+    viewer.scene.globe.tileCacheSize = 1000;
+    viewer.scene.globe.enableLighting = false;
+    viewer.scene.globe.atmosphereLightIntensity = 0;
+    viewer.scene.screenSpaceCameraController.enableCollisionDetection = false;
+    viewer.scene.globe.terrainExaggeration = 1.0;
+    viewer.scene.globe.backFaceCulling = false;
+    viewer.scene.logarithmicDepthBuffer = false;
     
     // 添加底图图层
     const mbtilesLayer = viewer.imageryLayers.addImageryProvider(
@@ -52,21 +78,31 @@ export const initCesiumViewer = (container, creditsContainer) => {
         tileHeight: 256,
         enablePickFeatures: false,
         rectangle: rectangle,
-        credit: 'Bing Maps MBTiles'
+        credit: 'Bing Maps MBTiles',
+        customTags: {
+          x: (imageryProvider, x, y, level) => x,
+          y: (imageryProvider, x, y, level) => y,
+          z: (imageryProvider, x, y, level) => level
+        },
+        tilingScheme: new Cesium.WebMercatorTilingScheme({
+          rectangleSouthwestInMeters: new Cesium.Cartesian2(-20037508.34278925, -20037508.34278925),
+          rectangleNortheastInMeters: new Cesium.Cartesian2(20037508.34278925, 20037508.34278925)
+        })
       })
     );
     
     mbtilesLayer.show = true;
     viewer.scene.requestRender();
     
-    // 初始化视角
+    // 设置初始视角
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(0, 0, 20000000),
       orientation: {
         heading: 0,
         pitch: -Cesium.Math.PI_OVER_TWO,
         roll: 0
-      }
+      },
+      duration: 0
     });
     
     // 添加自定义按钮到默认工具栏

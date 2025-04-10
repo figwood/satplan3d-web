@@ -1,5 +1,6 @@
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
+const webpack = require('webpack');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -36,6 +37,12 @@ const nextConfig = {
     if (!config.plugins) {
       config.plugins = [];
     }
+
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        CESIUM_BASE_URL: JSON.stringify('/cesium')
+      })
+    );
 
     config.plugins.push(
       new CopyWebpackPlugin({
