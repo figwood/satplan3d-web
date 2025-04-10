@@ -1,52 +1,40 @@
-# Satellite Orbit Visualization
+# 卫星轨道可视化系统
 
-This Next.js web application visualizes satellite orbits in 3D using CesiumJS.
+这是一个基于 Next.js 的 Web 应用程序，使用 CesiumJS 实现卫星轨道的三维可视化。
 
-## Setup
+## 环境配置
 
-1. Install dependencies:
+1. 安装依赖：
 ```bash
 npm install
-# or
+# 或者
 yarn install
 ```
 
-2. Get a Cesium ion access token from [https://cesium.com/ion/](https://cesium.com/ion/)
-
-3. Update the access token in `components/SatelliteViewer.js`
-
-4. Run the development server:
+3. 启动开发服务器：
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. 在浏览器中打开 [http://localhost:3000](http://localhost:3000) 查看运行效果
 
-## Features
+## 功能特性
 
-- 3D visualization of satellite orbits
-- Add random satellites with realistic orbital parameters
-- Clear all satellites
-- Time-dynamic visualization with animation controls
-- React-based interactive UI
+- 卫星轨道的三维可视化展示
+- 基于时间的动态可视化及动画控制
+- 基于 React 的交互式用户界面
 
-## File Structure
+## 文件结构说明
 
-- `pages/index.js` - Main page
-- `pages/_app.js` - Custom App component
-- `pages/_document.js` - Custom Document for head customization
-- `components/SatelliteViewer.js` - Cesium viewer component
-- `utils/satellite.js` - Satellite class for orbit calculations
-- `styles/globals.css` - Global styling
-- `next.config.js` - Next.js configuration for Cesium
+- `pages/index.js` - 主页面
+- `pages/_app.js` - 自定义 App 组件
+- `pages/_document.js` - 自定义 Document 组件，用于 head 标签定制
+- `components/SatelliteViewer.js` - Cesium 视图组件
+- `utils/satellite.js` - 轨道计算的卫星类
+- `styles/globals.css` - 全局样式
+- `next.config.js` - Next.js 的 Cesium 配置
 
-## Future Enhancements
+## 开发注意事项
 
-- Import TLE (Two-Line Element) data for real satellites
-- Custom satellite parameters input
-- Multiple visualization styles
-- Ground station visibility analysis
-- API integration for live satellite data
-- Interactive orbit design tools
+1. 本项目使用 Next.js 框架，请确保熟悉 React 和 Next.js 的基本概念
+2. 3D 可视化部分使用 CesiumJS，需要对 Cesium API 有基本了解
