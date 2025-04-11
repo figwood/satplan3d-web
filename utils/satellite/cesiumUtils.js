@@ -40,22 +40,25 @@ export const initCesiumViewer = (container, creditsContainer) => {
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
     viewer.scene.globe.showWaterEffect = false;
-    
+
     // 添加底图图层
     const mbtilesLayer = viewer.imageryLayers.addImageryProvider(
       new Cesium.UrlTemplateImageryProvider({
-        url: '/api/mbtiles/{z}/{x}/{y}',
-        fileExtension: '',
-        minimumLevel: 0,
-        maximumLevel: 18,
+        url: '/tiles/{z}/{x}/{reverseY}.png',
+        minimumLevel: 1,
+        maximumLevel: 5,
         tileWidth: 256,
         tileHeight: 256,
-        enablePickFeatures: false,
-        rectangle: rectangle,
-        credit: 'Bing Maps MBTiles'
+        tilingScheme: new Cesium.WebMercatorTilingScheme(),
+        customTags: {
+          reverseY: function(imageryProvider, x, y, level) {
+            const tmsY = Math.pow(2, level) - y - 1;
+            return tmsY;
+          }
+        },
+        credit: 'GDAL2Tiles Imagery'
       })
     );
-    
     mbtilesLayer.show = true;
     viewer.scene.requestRender();
     

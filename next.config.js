@@ -19,6 +19,14 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: '/tiles/:path*',
+        destination: 'http://localhost:8080/tiles/:path*'
+      }
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Handle native modules
     if (!isServer) {
