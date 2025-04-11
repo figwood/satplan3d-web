@@ -81,11 +81,7 @@ const nextConfig = {
     );
 
     return config;
-  },
-  // Add this to deal with potential SQLite buffer size issues
-  experimental: {
-    serverComponentsExternalPackages: ['sqlite3'],
-  },
+  }
 };
 
 module.exports = nextConfig;

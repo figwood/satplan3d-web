@@ -3,15 +3,7 @@ FROM node:18-slim AS builder
 
 WORKDIR /app
 
-# 添加构建依赖
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# 安装构建依赖
+# 复制依赖文件
 COPY package*.json ./
 RUN npm ci
 
