@@ -13,12 +13,24 @@ export const initCesiumViewer = (container, creditsContainer) => {
   Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZTczYTJlMi0yYzE4LTQ4YTgtOWI2Zi1mMTg2YTg1ZWE1NjEiLCJpZCI6MjkxNTQwLCJpYXQiOjE3NDQwMDk5OTZ9.k1W2lo4Qh-AgmN9-ZM87Rsf1BZlr72QGcKgKoClBjO0';
   
   try {
-    // 创建范围
-    const rectangle = Cesium.Rectangle.fromDegrees(-180, -90, 180, 90);
-    
     // 创建查看器
     const viewer = new Cesium.Viewer(container, {
       baseLayerPicker: false,
+      imageryProvider: new Cesium.UrlTemplateImageryProvider({
+        url: '/tiles/{z}/{x}/{reverseY}.png',
+        minimumLevel: 1,
+        maximumLevel: 5,
+        tileWidth: 256,
+        tileHeight: 256,
+        tilingScheme: new Cesium.WebMercatorTilingScheme(),
+        customTags: {
+          reverseY: function(imageryProvider, x, y, level) {
+            const tmsY = Math.pow(2, level) - y - 1;
+            return tmsY;
+          }
+        },
+        credit: 'GDAL2Tiles Imagery'
+      }),
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       timeline: false,
       animation: false,
@@ -33,38 +45,30 @@ export const initCesiumViewer = (container, creditsContainer) => {
       fullscreenButton: false, // 禁用默认全屏按钮，我们会添加自定义的
       vrButton: false,
       selectionIndicator: false,
-      infoBox: false
+      infoBox: false,
+      scene3DOnly: true,
+      shouldAnimate: true
     });
+
+    // 启用大气层效果
+    viewer.scene.globe.enableLighting = true;
+    viewer.scene.globe.enableNightLighting = true;
+    viewer.scene.globe.showGroundAtmosphere = true;
+    
+    // 配置天空大气层
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.skyAtmosphere.brightnessShift = 0.2;
+    viewer.scene.skyAtmosphere.hueShift = 0.0;
+    viewer.scene.skyAtmosphere.saturationShift = 0.1;
 
     // 设置地球和背景颜色
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
     viewer.scene.globe.showWaterEffect = false;
 
-    // 添加底图图层
-    const mbtilesLayer = viewer.imageryLayers.addImageryProvider(
-      new Cesium.UrlTemplateImageryProvider({
-        url: '/tiles/{z}/{x}/{reverseY}.png',
-        minimumLevel: 1,
-        maximumLevel: 5,
-        tileWidth: 256,
-        tileHeight: 256,
-        tilingScheme: new Cesium.WebMercatorTilingScheme(),
-        customTags: {
-          reverseY: function(imageryProvider, x, y, level) {
-            const tmsY = Math.pow(2, level) - y - 1;
-            return tmsY;
-          }
-        },
-        credit: 'GDAL2Tiles Imagery'
-      })
-    );
-    mbtilesLayer.show = true;
-    viewer.scene.requestRender();
-    
     // 初始化视角
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(0, 0, 20000000),
+      destination: Cesium.Cartesian3.fromDegrees(120, 0, 20000000),
       orientation: {
         heading: 0,
         pitch: -Cesium.Math.PI_OVER_TWO,

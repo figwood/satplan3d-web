@@ -23,7 +23,7 @@ const nextConfig = {
     return [
       {
         source: '/tiles/:path*',
-        destination: 'http://localhost:8080/tiles/:path*'
+        destination: `${process.env.TILE_SERVER_URL}/tiles/:path*`
       }
     ];
   },
