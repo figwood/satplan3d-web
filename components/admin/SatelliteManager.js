@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Add, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
-import { Table, Button as AntButton, Tooltip, Badge, Space, Tag } from 'antd';
+import { Table, Button as AntButton, Tooltip, Badge, Space, Tag, ConfigProvider } from 'antd';
 import { EditOutlined, DeleteOutlined, DownOutlined, UpOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 
 export default function SatelliteManager() {
@@ -251,6 +251,31 @@ export default function SatelliteManager() {
       key: 'width',
     },
     {
+      title: '观测角',
+      dataIndex: 'observe_angle',
+      key: 'observe_angle',
+    },
+    {
+      title: '安装角',
+      dataIndex: 'init_angle',
+      key: 'init_angle',
+    },
+    {
+      title: '当前侧摆角',
+      dataIndex: 'cur_side_angle',
+      key: 'cur_side_angle',
+    },
+    {
+      title: '左侧摆角',
+      dataIndex: 'left_side_angle',
+      key: 'left_side_angle',
+    },
+    {
+      title: '右侧摆角',
+      dataIndex: 'right_side_angle',
+      key: 'right_side_angle',
+    },
+    {
       title: '操作',
       key: 'action',
       render: (_, record) => (
@@ -282,8 +307,8 @@ export default function SatelliteManager() {
       setExpandedRows(expandedKeys);
     },
     expandedRowRender: (record) => (
-      <div style={{ margin: 0 }}>
-        <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ margin: 0, maxHeight: '400px', overflow: 'auto' }}>
+        <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 1, padding: '8px 0' }}>
           <Typography variant="subtitle2">载荷列表</Typography>
           <AntButton
             type="primary"
@@ -303,6 +328,7 @@ export default function SatelliteManager() {
             size="small"
             rowKey={(s) => record.noardId+"_"+s.name}
             bordered
+            scroll={{ x: 'max-content' }}
           />
         ) : (
           <Typography style={{ padding: '20px 0', textAlign: 'center', color: '#999' }}>
@@ -320,7 +346,7 @@ export default function SatelliteManager() {
   };
   
   return (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h6">卫星管理</Typography>
         <Button
@@ -332,19 +358,33 @@ export default function SatelliteManager() {
         </Button>
       </Box>
 
-      <Table
-        columns={columns}
-        dataSource={satellites}
-        rowKey={(record) => record.id}
-        expandable={expandableConfig}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条数据`
-        }}
-        bordered
-      />
+      <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+        <ConfigProvider
+          theme={{
+            components: {
+              Table: {
+                borderRadius: 4,
+                paddingContentVerticalLG: 12,
+              },
+            },
+          }}
+        >
+          <Table
+            columns={columns}
+            dataSource={satellites}
+            rowKey={(record) => record.id}
+            expandable={expandableConfig}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条数据`
+            }}
+            bordered
+            scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }}
+          />
+        </ConfigProvider>
+      </Box>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
