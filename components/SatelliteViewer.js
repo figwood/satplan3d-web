@@ -168,7 +168,6 @@ const SatelliteViewer = () => {
     const cleanupDrawing = () => {
       if (rectanglePrimitive) {
         scene.primitives.remove(rectanglePrimitive);
-        rectanglePrimitive = null;
       }
       
       if (handler) {
@@ -360,7 +359,7 @@ const SatelliteViewer = () => {
           position: 'absolute',
           top: '10px',
           left: showTreeview ? '290px' : '40px',
-          right: '10px',
+          right: '200px', // Adjusted to leave space for the Cesium toolbar controls
           zIndex: 100,
           transition: 'left 0.3s',
           color: 'white'
