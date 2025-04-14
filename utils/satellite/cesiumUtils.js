@@ -44,8 +44,8 @@ export const initCesiumViewer = (container, creditsContainer) => {
       homeButton: true,
       fullscreenButton: false, // 禁用默认全屏按钮，我们会添加自定义的
       vrButton: false,
-      selectionIndicator: false,
-      infoBox: false,
+      selectionIndicator: true, // 启用选择指示器
+      infoBox: true, // 启用信息框
       scene3DOnly: true,
       shouldAnimate: true
     });

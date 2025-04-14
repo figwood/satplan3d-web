@@ -5,7 +5,11 @@ import dayjs from 'dayjs';
 import styles from '../styles/SatelliteViewer.module.css';
 
 // 导入拆分的组件和工具函数
-import { fetchSatelliteData } from '../utils/satellite/apiService';
+import { 
+  fetchSatelliteData, 
+  scheduleTask as scheduleTaskAPI,
+  displayScheduleResults 
+} from '../utils/satellite/apiService';
 import { initCesiumViewer, setupCameraEvents } from '../utils/satellite/cesiumUtils';
 import { SatelliteVisualizer } from '../components/satellite/SatelliteVisualizer';
 import SatelliteTree from '../components/satellite/SatelliteTree';
@@ -60,6 +64,23 @@ const SatelliteViewer = () => {
       
       // 加载卫星数据
       loadSatelliteData();
+      
+      // 添加点击事件处理器，用于显示目标区域详情
+      viewer.screenSpaceEventHandler.setInputAction((movement) => {
+        const pickedObject = viewer.scene.pick(movement.position);
+        if (Cesium.defined(pickedObject) && 
+            pickedObject.id instanceof Cesium.Entity && 
+            pickedObject.id.polygon) {
+          viewer.selectedEntity = pickedObject.id;
+          
+          // 如果实体有描述信息，Cesium会自动显示InfoBox
+          // 确保实体被选中，并且InfoBox会显示
+          viewer.trackedEntity = undefined; // 不跟踪，只选中
+        } else {
+          // 如果没有点击到任何实体，取消选择
+          viewer.selectedEntity = undefined;
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     }
     
     // 清理函数
@@ -117,6 +138,143 @@ const SatelliteViewer = () => {
   };
 
   /**
+   * 调用调度任务API
+   * @param {Object} area 区域坐标 {west, south, east, north}
+   */
+  const scheduleTask = async (area) => {
+    if (!selectedNode || !selectedNode.data) {
+      console.error('请先选择传感器');
+      return;
+    }
+
+    // 确保选择的是传感器而不是卫星
+    if (!selectedNode.data.sensorName) {
+      console.error('请选择具体的传感器');
+      return;
+    }
+
+    // 检查 Cesium 是否可用
+    if (!viewerRef.current || !Cesium) {
+      console.error('Cesium 未初始化');
+      return;
+    }
+
+    try {
+      // 从界面上的本地时间转换为UTC时间
+      const startLocalDate = planStartDate.startOf('day');
+      const startUtcDate = new Date(startLocalDate.valueOf());
+      const startTimestamp = Math.floor(startUtcDate.getTime() / 1000);
+      
+      // 计算结束时间 (开始时间 + 规划时间段天数)
+      const stopLocalDate = startLocalDate.add(planPeriod, 'day');
+      const stopUtcDate = new Date(stopLocalDate.valueOf());
+      const stopTimestamp = Math.floor(stopUtcDate.getTime() / 1000);
+      
+      // 构建API所需的区域参数，将经纬度转换为相应的格式
+      const apiArea = {
+        x_min: area.west,
+        y_min: area.south,
+        x_max: area.east,
+        y_max: area.north
+      };
+
+      // 调用API服务，使用时间戳格式
+      const response = await scheduleTaskAPI(
+        selectedNode.data.noard_id,
+        selectedNode.data.sensorName,
+        startTimestamp,
+        stopTimestamp,
+        apiArea
+      );
+
+      // 显示调度结果
+      if (response && response.opportunities && response.opportunities.length > 0) {
+        // 使用卫星/传感器特定颜色
+        const color = selectedNode.data.hex_color || selectedNode.data.satellite_hex_color || '#00FF00';
+        
+        // 创建Cesium颜色对象
+        const fillColor = new Cesium.Color.fromCssColorString(color);
+        
+        // 手动在这里显示多边形，不依赖于apiService
+        displayPolygonsOnMap(response, fillColor);
+      } else {
+        console.log('没有找到观测机会');
+      }
+    } catch (error) {
+      console.error('调度任务提交失败:', error);
+    }
+  };
+
+  /**
+   * 在地图上直接显示多边形
+   * @param {Object} scheduleResult 调度结果
+   * @param {Cesium.Color} fillColor 填充颜色
+   */
+  const displayPolygonsOnMap = (scheduleResult, fillColor) => {
+    try {
+      if (!viewerRef.current) {
+        console.error('Cesium viewer 未初始化');
+        return;
+      }
+
+      const viewer = viewerRef.current;
+      const opportunities = scheduleResult.opportunities;
+      const createdEntities = [];
+
+      opportunities.forEach((opportunity, index) => {
+        if (!opportunity.polygon || !Array.isArray(opportunity.polygon)) {
+          console.warn(`机会 ${index} 缺少有效的多边形数据`);
+          return;
+        }
+
+        // 从多边形坐标中提取经纬度
+        const positions = opportunity.polygon.map(coord => 
+          Cesium.Cartesian3.fromDegrees(coord.lon, coord.lat)
+        );
+
+        // 确保多边形闭合
+        if (positions.length > 0 && 
+            (positions[0].x !== positions[positions.length - 1].x || 
+             positions[0].y !== positions[positions.length - 1].y)) {
+          positions.push(positions[0]);
+        }
+
+        // 创建时间戳
+        const startTime = new Date(opportunity.start_time * 1000);
+        const endTime = new Date(opportunity.end_time * 1000);
+        
+        // 创建多边形实体
+        const entity = viewer.entities.add({
+          name: `观测机会 ${index + 1} (${startTime.toLocaleString()} - ${endTime.toLocaleString()})`,
+          polygon: {
+            hierarchy: new Cesium.PolygonHierarchy(positions),
+            material: fillColor ? fillColor.withAlpha(0.5) : Cesium.Color.GREEN.withAlpha(0.5),
+            outline: true,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          },
+          description: `
+            <p>开始时间: ${startTime.toLocaleString()}</p>
+            <p>结束时间: ${endTime.toLocaleString()}</p>
+            <p>持续时间: ${(opportunity.end_time - opportunity.start_time)} 秒</p>
+            <p>卫星: ${scheduleResult.satellite || 'N/A'}</p>
+            <p>传感器: ${scheduleResult.sensor || 'N/A'}</p>
+          `
+        });
+
+        createdEntities.push(entity);
+      });
+
+      // 不改变相机位置，保持当前视角
+      return createdEntities;
+    } catch (error) {
+      console.error('显示多边形错误:', error);
+      return [];
+    }
+  };
+
+  /**
    * 处理绘制目标区域按钮点击
    */
   const onDrawTargetArea = () => {
@@ -146,9 +304,6 @@ const SatelliteViewer = () => {
     // 如果开始绘制，初始化绘制模式
     const viewer = viewerRef.current;
     const scene = viewer.scene;
-    
-    // 提示用户当前处于绘制模式
-    console.log("请在地图上点击并拖动鼠标绘制矩形区域");
     
     // 设置鼠标模式为绘制
     scene.screenSpaceCameraController.enableInputs = false;
@@ -322,12 +477,16 @@ const SatelliteViewer = () => {
           }
         });
         
-        console.log("绘制的矩形区域:", {
+        // 获取绘制区域的经纬度坐标
+        const area = {
           west: Cesium.Math.toDegrees(currentRectangle.west),
           south: Cesium.Math.toDegrees(currentRectangle.south),
           east: Cesium.Math.toDegrees(currentRectangle.east),
           north: Cesium.Math.toDegrees(currentRectangle.north)
-        });
+        };
+        
+        // 调用调度任务函数
+        scheduleTask(area);
       }
       
       cleanupDrawing();
