@@ -34,6 +34,7 @@ const SatelliteViewer = () => {
   const [satelliteData, setSatelliteData] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [halfSelectedKeys, setHalfSelectedKeys] = useState([]);
+  const [checkedNodes, setCheckedNodes] = useState([]); // 跟踪被选中的节点
   
   // 规划相关状态
   const [planStartDate, setPlanStartDate] = useState(dayjs()); // 使用dayjs创建今天的日期
@@ -108,9 +109,13 @@ const SatelliteViewer = () => {
    * 处理树节点选择事件
    */
   const onSelect = async (selectedKeys, info) => {
-    if (!info.node) return;
-    // 只更新选中节点状态
+    if (!info.node || !visualizerRef.current) return;
+    
+    // 更新选中节点状态
     setSelectedNode(info.node);
+    
+    // 处理节点选择，显示轨迹
+    await visualizerRef.current.handleNodeSelect(info.node);
   };
 
   /**
@@ -121,6 +126,7 @@ const SatelliteViewer = () => {
     
     // 直接使用可视化处理类处理节点选中状态变化
     await visualizerRef.current.handleNodesCheck(info.checkedNodes);
+    setCheckedNodes(info.checkedNodes); // 更新选中节点状态
   };
 
   /**
@@ -142,14 +148,8 @@ const SatelliteViewer = () => {
    * @param {Object} area 区域坐标 {west, south, east, north}
    */
   const scheduleTask = async (area) => {
-    if (!selectedNode || !selectedNode.data) {
+    if (!checkedNodes || checkedNodes.length === 0) {
       console.error('请先选择传感器');
-      return;
-    }
-
-    // 确保选择的是传感器而不是卫星
-    if (!selectedNode.data.sensorName) {
-      console.error('请选择具体的传感器');
       return;
     }
 
@@ -178,27 +178,40 @@ const SatelliteViewer = () => {
         y_max: area.north
       };
 
-      // 调用API服务，使用时间戳格式
-      const response = await scheduleTaskAPI(
-        selectedNode.data.noard_id,
-        selectedNode.data.sensorName,
-        startTimestamp,
-        stopTimestamp,
-        apiArea
+      // 过滤出所有有效的传感器节点（叶子节点）
+      const sensorNodes = checkedNodes.filter(node => 
+        node.data && node.data.sensorName && node.isLeaf
       );
 
-      // 显示调度结果
-      if (response && response.opportunities && response.opportunities.length > 0) {
-        // 使用卫星/传感器特定颜色
-        const color = selectedNode.data.hex_color || selectedNode.data.satellite_hex_color || '#00FF00';
-        
-        // 创建Cesium颜色对象
-        const fillColor = new Cesium.Color.fromCssColorString(color);
-        
-        // 手动在这里显示多边形，不依赖于apiService
-        displayPolygonsOnMap(response, fillColor);
-      } else {
-        console.log('没有找到观测机会');
+      if (sensorNodes.length === 0) {
+        console.error('请选择具体的传感器');
+        return;
+      }
+
+      // 为每个选中的传感器节点进行规划
+      for (const node of sensorNodes) {
+        // 调用API服务，使用时间戳格式
+        const response = await scheduleTaskAPI(
+          node.data.noard_id,
+          node.data.sensorName,
+          startTimestamp,
+          stopTimestamp,
+          apiArea
+        );
+
+        // 显示调度结果
+        if (response && response.opportunities && response.opportunities.length > 0) {
+          // 使用卫星/传感器特定颜色
+          const color = node.data.hex_color || node.data.satellite_hex_color || '#00FF00';
+          
+          // 创建Cesium颜色对象
+          const fillColor = new Cesium.Color.fromCssColorString(color);
+          
+          // 手动在这里显示多边形，不依赖于apiService
+          displayPolygonsOnMap(response, fillColor);
+        } else {
+          console.log(`没有找到传感器 ${node.data.sensorName} 的观测机会`);
+        }
       }
     } catch (error) {
       console.error('调度任务提交失败:', error);
@@ -279,26 +292,41 @@ const SatelliteViewer = () => {
    */
   const onDrawTargetArea = () => {
     if (!viewerRef.current) return;
-    
-    // 切换绘制状态
-    setIsDrawingArea(!isDrawingArea);
-    
-    // 如果已经在绘制中，取消绘制
-    if (isDrawingArea) {
+
+    // 清理之前的绘制状态
+    const cleanupPreviousDrawing = () => {
+      // 清除之前的处理器
       if (drawHandlerRef.current) {
         drawHandlerRef.current.destroy();
         drawHandlerRef.current = null;
       }
-      
-      // 恢复相机控制
-      viewerRef.current.scene.screenSpaceCameraController.enableInputs = true;
-      return;
-    }
 
-    // 清除现有的矩形实体（包括任何先前绘制的区域）
-    if (rectangleEntityRef.current) {
-      viewerRef.current.entities.remove(rectangleEntityRef.current);
-      rectangleEntityRef.current = null;
+      // 恢复相机控制
+      if (viewerRef.current && viewerRef.current.scene) {
+        viewerRef.current.scene.screenSpaceCameraController.enableInputs = true;
+      }
+
+      // 清除矩形实体
+      if (rectangleEntityRef.current && viewerRef.current) {
+        viewerRef.current.entities.remove(rectangleEntityRef.current);
+        rectangleEntityRef.current = null;
+      }
+
+      // 清除可视化处理类中的路径和目标
+      if (visualizerRef.current) {
+        visualizerRef.current.clearPathsAndTargets();
+      }
+    };
+    
+    // 清除现有的传感器路径和目标区域
+    cleanupPreviousDrawing();
+    
+    // 切换绘制状态
+    setIsDrawingArea(!isDrawingArea);
+    
+    // 如果已经在绘制中，不需要创建新的绘制处理器
+    if (isDrawingArea) {
+      return;
     }
     
     // 如果开始绘制，初始化绘制模式
@@ -321,10 +349,20 @@ const SatelliteViewer = () => {
     
     // 清理函数
     const cleanupDrawing = () => {
+      // 清除临时图元
       if (rectanglePrimitive) {
         scene.primitives.remove(rectanglePrimitive);
+        rectanglePrimitive = null;
       }
       
+      // 清除几何体实例
+      rectangleInstance = null;
+      
+      // 清除起始位置参考
+      startPosition = null;
+      startCartographic = null;
+      
+      // 清除事件处理器
       if (handler) {
         handler.destroy();
       }
