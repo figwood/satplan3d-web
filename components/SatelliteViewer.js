@@ -122,6 +122,7 @@ const SatelliteViewer = () => {
   const onDrawTargetArea = () => {
     if (!viewerRef.current) return;
     
+    // 切换绘制状态
     setIsDrawingArea(!isDrawingArea);
     
     // 如果已经在绘制中，取消绘制
@@ -130,13 +131,16 @@ const SatelliteViewer = () => {
         drawHandlerRef.current.destroy();
         drawHandlerRef.current = null;
       }
-      if (rectangleEntityRef.current) {
-        viewerRef.current.entities.remove(rectangleEntityRef.current);
-        rectangleEntityRef.current = null;
-      }
+      
       // 恢复相机控制
       viewerRef.current.scene.screenSpaceCameraController.enableInputs = true;
       return;
+    }
+
+    // 清除现有的矩形实体（包括任何先前绘制的区域）
+    if (rectangleEntityRef.current) {
+      viewerRef.current.entities.remove(rectangleEntityRef.current);
+      rectangleEntityRef.current = null;
     }
     
     // 如果开始绘制，初始化绘制模式
