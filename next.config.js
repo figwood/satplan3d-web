@@ -1,10 +1,40 @@
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
+const webpack = require('webpack');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  
+  // Add transpilation configuration for Ant Design dependencies
+  transpilePackages: [
+    'antd',
+    '@ant-design',
+    'rc-util',
+    'rc-pagination',
+    'rc-picker',
+    'rc-table',
+    'rc-tree',
+    'rc-dialog',
+    'rc-select',
+    'rc-cascader',
+    'rc-checkbox',
+    'rc-dropdown',
+    'rc-menu',
+    'rc-input',
+    'rc-input-number',
+    'rc-notification',
+    'rc-tooltip',
+    'rc-tree-select',
+    'rc-trigger',
+    'rc-tabs',
+    'rc-textarea',
+    'rc-upload',
+    '@rc-component/util',
+    '@rc-component/trigger'
+  ],
+  
   async headers() {
     return [
       {
@@ -19,6 +49,7 @@ const nextConfig = {
       },
     ];
   },
+  
   async rewrites() {
     return [
       {
@@ -27,6 +58,7 @@ const nextConfig = {
       }
     ];
   },
+  
   webpack: (config, { isServer }) => {
     // Handle native modules
     if (!isServer) {
@@ -44,6 +76,12 @@ const nextConfig = {
     if (!config.plugins) {
       config.plugins = [];
     }
+
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        CESIUM_BASE_URL: JSON.stringify('/cesium')
+      })
+    );
 
     config.plugins.push(
       new CopyWebpackPlugin({

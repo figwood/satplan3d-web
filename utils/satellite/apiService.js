@@ -20,10 +20,25 @@ const getCesium = () => {
  */
 export const fetchSatelliteData = async () => {
   try {
-    const response = await fetch('/api/satellites');
+    // 获取 API URL（如果在前端设置了的话）
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    
+    // 构建请求 URL
+    const url = `${apiBaseUrl}/api/satellites`;
+    
+    // 发送请求获取卫星数据
+    const response = await fetch(url, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    
     if (!response.ok) {
+      console.error(`获取卫星数据失败: HTTP ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    
     const data = await response.json();
     return data;
   } catch (error) {

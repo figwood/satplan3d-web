@@ -2,14 +2,14 @@ import * as Cesium from 'cesium';
 
 /**
  * 初始化 Cesium 查看器
- * @param {HTMLElement} container Cesium 容器元素
- * @param {HTMLElement} creditsContainer 用于隐藏 credits 的容器元素
- * @returns {Cesium.Viewer} 初始化的 Cesium 查看器实例
+ * @param {HTMLElement} container 容器元素
+ * @param {HTMLElement} creditsContainer credits 容器元素
+ * @returns {Cesium.Viewer} Cesium 查看器实例
  */
 export const initCesiumViewer = (container, creditsContainer) => {
-  if (typeof window === 'undefined') return null;
+  if (!container) return null;
   
-  window.CESIUM_BASE_URL = '/cesium/';
+  // 设置 Ion 默认访问令牌
   Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiZTczYTJlMi0yYzE4LTQ4YTgtOWI2Zi1mMTg2YTg1ZWE1NjEiLCJpZCI6MjkxNTQwLCJpYXQiOjE3NDQwMDk5OTZ9.k1W2lo4Qh-AgmN9-ZM87Rsf1BZlr72QGcKgKoClBjO0';
   
   try {
@@ -34,7 +34,7 @@ export const initCesiumViewer = (container, creditsContainer) => {
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       timeline: false,
       animation: false,
-      sceneModePicker: false, // 禁用默认的场景模式选择器
+      sceneModePicker: false,
       navigationHelpButton: false,
       geocoder: false,
       sceneMode: Cesium.SceneMode.SCENE3D,
@@ -42,7 +42,7 @@ export const initCesiumViewer = (container, creditsContainer) => {
       creditContainer: creditsContainer,
       navigationInstructionsInitiallyVisible: false,
       homeButton: true,
-      fullscreenButton: false, // 禁用默认全屏按钮，我们会添加自定义的
+      fullscreenButton: false,
       vrButton: false,
       selectionIndicator: true, // 启用选择指示器
       infoBox: true, // 启用信息框
@@ -61,9 +61,11 @@ export const initCesiumViewer = (container, creditsContainer) => {
     viewer.scene.skyAtmosphere.hueShift = 0.0;
     viewer.scene.skyAtmosphere.saturationShift = 0.1;
 
-    // 设置地球和背景颜色
+    // 优化场景设置
+    viewer.scene.globe.enableLighting = false;
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
+    viewer.scene.globe.showGroundAtmosphere = false;
     viewer.scene.globe.showWaterEffect = false;
 
     // 初始化视角
@@ -73,7 +75,8 @@ export const initCesiumViewer = (container, creditsContainer) => {
         heading: 0,
         pitch: -Cesium.Math.PI_OVER_TWO,
         roll: 0
-      }
+      },
+      duration: 0
     });
     
     // 添加自定义按钮到默认工具栏
