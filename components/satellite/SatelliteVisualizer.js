@@ -123,6 +123,7 @@ export class SatelliteVisualizer {
     // 清除所有实体
     this.clearAllEntities();
     
-    // 不添加卫星实体和轨迹，保持3D视图为空
+    // 不添加任何实体，保持3D视图为空
+    // 选中状态仅用于规划时使用
   }
 }

@@ -36,7 +36,7 @@ export default async function handler(req, res) {
       throw new Error('API_URL not configured');
     }
 
-    const response = await fetch(`${apiUrl}/schedule`, {
+    const response = await fetch(`${apiUrl}/api/schedule`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

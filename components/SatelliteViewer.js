@@ -183,7 +183,7 @@ const SatelliteViewer = () => {
 
       // 过滤出所有有效的传感器节点（叶子节点）
       const sensorNodes = checkedNodes.filter(node => 
-        node.data && node.data.sensorName && node.isLeaf
+        node.data && node.data.name && node.isLeaf
       );
 
       if (sensorNodes.length === 0) {
@@ -196,7 +196,7 @@ const SatelliteViewer = () => {
         // 调用API服务，使用时间戳格式
         const response = await scheduleTaskAPI(
           node.data.noard_id,
-          node.data.sensorName,
+          node.data.name,
           startTimestamp,
           stopTimestamp,
           apiArea
@@ -213,7 +213,7 @@ const SatelliteViewer = () => {
           // 手动在这里显示多边形，不依赖于apiService
           displayPolygonsOnMap(response, fillColor);
         } else {
-          console.log(`没有找到传感器 ${node.data.sensorName} 的观测机会`);
+          console.log(`没有找到传感器 ${node.data.name} 的观测机会`);
         }
       }
     } catch (error) {
