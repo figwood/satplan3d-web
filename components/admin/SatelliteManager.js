@@ -36,7 +36,20 @@ export default function SatelliteManager() {
   const [error, setError] = useState('');
   const [tleText, setTleText] = useState('');
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = useState(null);
-  
+  // Add new state for sensor dialog
+  const [sensorDialogOpen, setSensorDialogOpen] = useState(false);
+  const [sensorFormData, setSensorFormData] = useState({
+    sensor_name: '',
+    resolution: 0,
+    right_side_angle: 0,
+    left_side_angle: 0,
+    init_angle: 0,
+    observe_angle: 0,
+    hex_color: '#3388ff',
+    noard_id: ''
+  });
+  const [currentSatellite, setCurrentSatellite] = useState(null);
+
   // Pre-defined color palette options
   const colorOptions = [
     '#3388ff', '#ff3333', '#33cc33', '#ff9900', '#9900cc',
@@ -238,6 +251,57 @@ export default function SatelliteManager() {
     handleColorClose();
   };
 
+  const handleAddSensor = (satellite) => {
+    setCurrentSatellite(satellite);
+    setSensorFormData({
+      ...sensorFormData,
+      noard_id: satellite.noardId
+    });
+    setSensorDialogOpen(true);
+  };
+
+  const handleCloseSensorDialog = () => {
+    setSensorDialogOpen(false);
+    setSensorFormData({
+      sensor_name: '',
+      resolution: 0,
+      right_side_angle: 0,
+      left_side_angle: 0,
+      init_angle: 0,
+      observe_angle: 0,
+      hex_color: '#3388ff',
+      noard_id: ''
+    });
+    setError('');
+  };
+
+  const handleSubmitSensor = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/sensor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify(sensorFormData),
+      });
+
+      if (response.ok) {
+        await fetchSatellites();
+        handleCloseSensorDialog();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || '保存载荷失败');
+      }
+    } catch (error) {
+      console.error('Error saving sensor:', error);
+      setError('保存载荷过程中发生错误');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const colorPickerOpen = Boolean(colorPickerAnchorEl);
 
   const columns = [
@@ -387,7 +451,7 @@ export default function SatelliteManager() {
             type="primary"
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => console.log(`添加载荷到卫星 ${record.name}`)}
+            onClick={() => handleAddSensor(record)}
           >
             添加载荷
           </AntButton>
@@ -565,6 +629,127 @@ export default function SatelliteManager() {
           <Button onClick={handleClose} disabled={loading}>取消</Button>
           <Button 
             onClick={handleSubmit} 
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? '保存中...' : '保存'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog 
+        open={sensorDialogOpen} 
+        onClose={loading ? undefined : handleCloseSensorDialog}
+        maxWidth="md" 
+        fullWidth
+        disableEscapeKeyDown={loading}
+      >
+        <DialogTitle>添加载荷</DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <TextField
+            fullWidth
+            label="载荷名称"
+            value={sensorFormData.sensor_name}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, sensor_name: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="分辨率"
+            type="number"
+            value={sensorFormData.resolution}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, resolution: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="右侧摆角"
+            type="number"
+            value={sensorFormData.right_side_angle}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, right_side_angle: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="左侧摆角"
+            type="number"
+            value={sensorFormData.left_side_angle}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, left_side_angle: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="安装角"
+            type="number"
+            value={sensorFormData.init_angle}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, init_angle: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="观测角"
+            type="number"
+            value={sensorFormData.observe_angle}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, observe_angle: e.target.value })}
+            margin="normal"
+            required
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="颜色"
+            value={sensorFormData.hex_color}
+            onChange={(e) => setSensorFormData({ ...sensorFormData, hex_color: e.target.value })}
+            margin="normal"
+            disabled={loading}
+            InputProps={{
+              startAdornment: (
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  backgroundColor: sensorFormData.hex_color || '#3388ff', 
+                  marginRight: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd'
+                }}></div>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <ColorLens
+                    onClick={handleColorClick}
+                    style={{ cursor: loading ? 'wait' : 'pointer' }}
+                  />
+                </InputAdornment>
+              )
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSensorDialog} disabled={loading}>取消</Button>
+          <Button 
+            onClick={handleSubmitSensor} 
             variant="contained"
             disabled={loading}
           >
