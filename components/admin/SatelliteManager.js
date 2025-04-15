@@ -55,7 +55,7 @@ export default function SatelliteManager() {
     try {
       const response = await fetch('/api/satellite/list', {
         headers: {
-          'Authorization': `${session?.token_type} ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
       const data = await response.json();
@@ -133,7 +133,7 @@ export default function SatelliteManager() {
 
   const handleSubmit = async () => {
     try {
-      if (!formData.tle1 || !formData.tle2) {
+      if (!editData && (!formData.tle1 || !formData.tle2)) {
         setError('TLE数据不完整');
         return;
       }
@@ -142,31 +142,42 @@ export default function SatelliteManager() {
       document.body.style.cursor = 'wait';
 
       const url = editData 
-        ? `/api/satellite/${editData.id}` 
+        ? `/api/satellite/${editData.noardId}` 
         : '/api/satellite';
       
       const method = editData ? 'PUT' : 'POST';
       
+      const body = editData ? {
+        sat_name: formData.name,
+        hex_color: formData.hex_color,
+      } : {
+        sat_name: formData.name,
+        noardId: formData.noardId,
+        tle: formData.name + '\n' + formData.tle1 + '\n' + formData.tle2,
+        hex_color: formData.hex_color,
+      };
+
+      // 确保session和token存在
+      if (!session?.access_token) {
+        setError('未授权，请重新登录');
+        return;
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `${session?.token_type} ${session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-            "sat_name": formData.name,
-            "noardId": formData.noardId,
-            "tle": formData.name+'\n'+ formData.tle1 + '\n' + formData.tle2,
-            "hex_color": formData.hex_color,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (response.ok) {
         await fetchSatellites();
         handleClose();
       } else {
-        const error = await response.json();
-        setError(error.message || '保存失败');
+        const errorData = await response.json();
+        setError(errorData.detail || '保存失败');
       }
     } catch (error) {
       console.error('Error saving satellite:', error);
@@ -185,7 +196,7 @@ export default function SatelliteManager() {
       const response = await fetch(`/api/satellite/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `${session?.token_type} ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
 
@@ -202,7 +213,7 @@ export default function SatelliteManager() {
       const response = await fetch(`/api/satellite/${id}/tle`, {
         method: 'PUT',
         headers: {
-          'Authorization': `${session?.token_type} ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       });
 
@@ -465,21 +476,23 @@ export default function SatelliteManager() {
             </Alert>
           )}
           
-          <Box sx={{ mt: 2, mb: 3 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              TLE数据（可直接粘贴三行TLE数据）:
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="粘贴三行TLE数据，包含：卫星名称、TLE1、TLE2"
-              value={tleText}
-              onChange={handleTLEPaste}
-              sx={{ mb: 2 }}
-              disabled={loading}
-            />
-          </Box>
+          {!editData && (
+            <Box sx={{ mt: 2, mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                TLE数据（可直接粘贴三行TLE数据）:
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="粘贴三行TLE数据，包含：卫星名称、TLE1、TLE2"
+                value={tleText}
+                onChange={handleTLEPaste}
+                sx={{ mb: 2 }}
+                disabled={loading}
+              />
+            </Box>
+          )}
 
           <TextField
             fullWidth

@@ -19,12 +19,11 @@ export default async function handler(req, res) {
       console.error('会话中没有访问令牌');
       return res.status(401).json({ error: 'No access token available' })
     }
-
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `${session.token_type} ${session.access_token}`
+      'Authorization': `Bearer ${session.access_token}`
     }
-    
+
     // 处理 PUT 和 DELETE 请求
     if (!['PUT', 'DELETE'].includes(req.method)) {
       return res.status(405).json({ error: 'Method not allowed' })

@@ -23,10 +23,9 @@ export default async function handler(req, res) {
       hasToken: !!session.access_token,
       tokenType: session.token_type
     });
-    
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `${session.token_type} ${session.access_token}`
+      'Authorization': `Bearer ${session.access_token}`
     }
     
     // 只处理 POST 请求 - 创建新卫星

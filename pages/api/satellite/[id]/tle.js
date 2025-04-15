@@ -28,19 +28,17 @@ export default async function handler(req, res) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `${session.token_type} ${session.access_token}`
+        'Authorization': `Bearer ${session.access_token}`
       }
-    })
-    
+    });
+
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`API错误响应状态: ${response.status}`);
-      console.error(`API错误响应内容: ${errorText}`);
-      throw new Error(`API返回错误: ${response.status} - ${errorText}`)
+      const errorText = await response.text();
+      throw new Error(`TLE更新失败: ${response.status} - ${errorText}`);
     }
-    
-    const data = await response.json()
-    res.status(200).json(data)
+
+    const data = await response.json();
+    res.status(200).json(data);
   } catch (error) {
     console.error('Error updating TLE:', error)
     res.status(500).json({ error: error.message || 'Failed to update TLE' })

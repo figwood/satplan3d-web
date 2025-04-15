@@ -17,8 +17,6 @@ export const authOptions = {
           const apiUrl = process.env.API_URL || 'http://localhost:8000';
           const loginUrl = `${apiUrl}/api/login`;
           
-          console.log(`尝试登录: ${credentials.username}, API URL: ${loginUrl}`);
-
           const form = new FormData();
           form.append('username', credentials.username);
           form.append('password', credentials.password);
@@ -28,29 +26,19 @@ export const authOptions = {
             body: form
           });
 
-          console.log('登录响应状态:', res.status);
-          
           if (!res.ok) {
             console.error(`登录失败: HTTP ${res.status}`);
             return null;
           }
           
           const data = await res.json();
-          console.log('登录响应数据:', {
-            hasToken: !!data.access_token,
-            tokenType: data.token_type,
-            tokenLength: data.access_token?.length
-          });
 
           if (data.access_token) {
-            // 直接返回原始令牌数据，不做任何修改
             return {
               id: credentials.username,
               name: credentials.username,
-              // 存储完整的令牌信息
               access_token: data.access_token,
-              token_type: data.token_type || 'Bearer',
-              raw_token: data.access_token // 保存一个原始副本
+              token_type: 'Bearer'  // 固定使用Bearer类型
             }
           }
 
@@ -68,32 +56,21 @@ export const authOptions = {
     maxAge: 24 * 60 * 60 // 24 hours
   },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       if (user) {
-        // 保持令牌的原始格式
+        // 保存token信息到JWT中
         token.access_token = user.access_token;
-        token.raw_token = user.raw_token;
-        token.token_type = user.token_type;
-        token.user = {
-          name: user.name,
-          id: user.id
-        };
-        console.log('JWT回调 - 令牌已更新', {
-          hasToken: !!token.access_token,
-          tokenType: token.token_type
-        });
+        token.token_type = 'Bearer';  // 固定使用Bearer类型
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
-        // 使用原始令牌格式
+        // 将token信息添加到session中
         session.access_token = token.access_token;
-        session.token_type = token.token_type;
-        session.raw_token = token.raw_token;
+        session.token_type = 'Bearer';  // 固定使用Bearer类型
         session.user = {
-          name: token.user?.name || token.name || "用户",
-          id: token.user?.id || token.sub
+          name: token.name || "用户",
         };
       }
       return session;
@@ -115,7 +92,7 @@ export const authOptions = {
     signIn: '/login',
     error: '/login'
   },
-  debug: true // 启用调试以便排查问题
+  debug: true
 }
 
 export default NextAuth(authOptions)
