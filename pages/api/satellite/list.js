@@ -1,21 +1,16 @@
-import { getSession } from "next-auth/react"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "../auth/[...nextauth]"
 
 export default async function handler(req, res) {
-  const session = await getSession({ req })
-  
-  // 对于GET请求，允许未登录访问
-  if (req.method !== 'GET' && !session) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
+  // 卫星列表接口不需要认证即可访问
   const apiUrl = process.env.API_URL
   if (!apiUrl) {
     return res.status(500).json({ error: 'API_URL not configured' })
   }
 
   try {
-    // 构建完整的 API URL，确保路径正确
-    const fullUrl = `${apiUrl}/api/satellites`
+    // 构建完整的 API URL
+    const fullUrl = `${apiUrl}/api/satellite/list`
     
     const headers = {
       'Content-Type': 'application/json',
@@ -23,11 +18,9 @@ export default async function handler(req, res) {
       'Pragma': 'no-cache'
     }
 
-    // 添加认证 token
-    if (session?.accessToken) {
-      headers['Authorization'] = `Bearer ${session.accessToken}`
-    }
-
+    // 打印请求信息
+    console.log(`发送 ${req.method} 请求到: ${fullUrl}`);
+    
     const response = await fetch(fullUrl, {
       method: req.method,
       headers,
@@ -36,7 +29,8 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`API错误响应: ${errorText}`)
+      console.error(`API错误响应状态: ${response.status}`);
+      console.error(`API错误响应内容: ${errorText}`);
       throw new Error(`API返回错误: ${response.status} - ${errorText}`)
     }
 

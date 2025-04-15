@@ -21,10 +21,10 @@ const getCesium = () => {
 export const fetchSatelliteData = async () => {
   try {
     // 获取 API URL（如果在前端设置了的话）
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    const apiBaseUrl = process.env.API_URL || '';
     
-    // 构建请求 URL
-    const url = `${apiBaseUrl}/api/satellites`;
+    // 构建请求 URL - 使用新的API端点
+    const url = `${apiBaseUrl}/api/satellite/list`;
     
     // 发送请求获取卫星数据
     const response = await fetch(url, {

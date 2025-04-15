@@ -39,8 +39,12 @@ export default function AdminPage() {
     );
   }
 
-  // 如果没有会话或会话中没有访问令牌，则视为未登录
-  if (!session || !session.accessToken) {
+  // 检查会话和访问令牌是否存在（使用新的令牌字段名）
+  if (!session || !session.access_token) {
+    console.log('Session missing or invalid:', { 
+      hasSession: !!session, 
+      hasToken: session?.access_token
+    });
     return null;
   }
 

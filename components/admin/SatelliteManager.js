@@ -9,9 +9,12 @@ import {
   DialogActions,
   TextField,
   Typography,
-  Alert
+  Alert,
+  Grid,
+  Popover,
+  InputAdornment
 } from '@mui/material';
-import { Edit, Delete, Add, KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import { Edit, Delete, Add, KeyboardArrowDown, KeyboardArrowUp, ColorLens } from '@mui/icons-material';
 import { useSession } from 'next-auth/react';
 import { Table, Button as AntButton, Tooltip, Badge, Space, Tag, ConfigProvider } from 'antd';
 import { EditOutlined, DeleteOutlined, DownOutlined, UpOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
@@ -22,37 +25,47 @@ export default function SatelliteManager() {
   const [open, setOpen] = useState(false);
   const [editData, setEditData] = useState(null);
   const [expandedRows, setExpandedRows] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     noardId: '',
     tle1: '',
     tle2: '',
-    description: ''
+    hex_color: '#3388ff'
   });
   const [error, setError] = useState('');
+  const [tleText, setTleText] = useState('');
+  const [colorPickerAnchorEl, setColorPickerAnchorEl] = useState(null);
+  
+  // Pre-defined color palette options
+  const colorOptions = [
+    '#3388ff', '#ff3333', '#33cc33', '#ff9900', '#9900cc',
+    '#00ccff', '#ff66b2', '#ffcc00', '#8c8c8c', '#663300',
+    '#ff6600', '#00cc99', '#0066cc', '#cc00cc', '#ffff00',
+    '#990000', '#006600', '#0000cc', '#660066', '#ff9966'
+  ];
 
   useEffect(() => {
-    if (session?.accessToken) {
+    if (session?.access_token) {
       fetchSatellites();
     }
   }, [session]);
 
   const fetchSatellites = async () => {
     try {
-      const response = await fetch('/api/satellites', {
+      const response = await fetch('/api/satellite/list', {
         headers: {
-          'Authorization': `Bearer ${session?.accessToken}`
+          'Authorization': `${session?.token_type} ${session?.access_token}`
         }
       });
       const data = await response.json();
-      
       const satelliteArray = data.children || data;
       setSatellites(Array.isArray(satelliteArray) ? satelliteArray.map(sat => ({
         id: sat.data.noard_id,
         noardId: sat.data.noard_id,
         name: sat.data.name,
         hex_color: sat.data.hex_color,
-        sensors: sat.data.sensors|| [],
+        sensors: sat.data.sensors || [],
       })) : []);
     } catch (error) {
       console.error('Error fetching satellites:', error);
@@ -70,7 +83,7 @@ export default function SatelliteManager() {
         noardId: '',
         tle1: '',
         tle2: '',
-        description: ''
+        hex_color: '#3388ff'
       });
       setEditData(null);
     }
@@ -78,14 +91,23 @@ export default function SatelliteManager() {
   };
 
   const handleClose = () => {
-    setOpen(false);
-    setEditData(null);
-    setError('');
+    if (!loading) {
+      setOpen(false);
+      setEditData(null);
+      setError('');
+      setFormData({
+        name: '',
+        noardId: '',
+        tle1: '',
+        tle2: '',
+        hex_color: '#3388ff'
+      });
+      setTleText('');
+    }
   };
 
   const handleTLEPaste = (e) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text');
+    const text = e.target.value;
     const lines = text.trim().split('\n');
     
     if (lines.length >= 3) {
@@ -103,8 +125,9 @@ export default function SatelliteManager() {
         tle1,
         tle2
       }));
-    } else {
-      setError('请粘贴完整的TLE数据（包含卫星名称、TLE1和TLE2行）');
+      setTleText(text);
+    } else if (text && lines.length > 0) {
+      setError('TLE数据不完整，请提供包含卫星名称、TLE1和TLE2行的完整TLE数据');
     }
   };
 
@@ -115,9 +138,12 @@ export default function SatelliteManager() {
         return;
       }
 
+      setLoading(true);
+      document.body.style.cursor = 'wait';
+
       const url = editData 
-        ? `/api/satellites/${editData.id}` 
-        : '/api/satellites';
+        ? `/api/satellite/${editData.id}` 
+        : '/api/satellite';
       
       const method = editData ? 'PUT' : 'POST';
       
@@ -125,13 +151,18 @@ export default function SatelliteManager() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.accessToken}`
+          'Authorization': `${session?.token_type} ${session?.access_token}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+            "sat_name": formData.name,
+            "noardId": formData.noardId,
+            "tle": formData.name+'\n'+ formData.tle1 + '\n' + formData.tle2,
+            "hex_color": formData.hex_color,
+        }),
       });
 
       if (response.ok) {
-        fetchSatellites();
+        await fetchSatellites();
         handleClose();
       } else {
         const error = await response.json();
@@ -140,17 +171,21 @@ export default function SatelliteManager() {
     } catch (error) {
       console.error('Error saving satellite:', error);
       setError('保存过程中发生错误');
+    } finally {
+      setLoading(false);
+      document.body.style.cursor = 'default';
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('确定要删除这颗卫星吗？')) return;
+    const satellite = satellites.find(sat => sat.id === id);
+    if (!confirm(`确定要删除卫星"${satellite.name}"吗？`)) return;
     
     try {
-      const response = await fetch(`/api/satellites/${id}`, {
+      const response = await fetch(`/api/satellite/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session?.accessToken}`
+          'Authorization': `${session?.token_type} ${session?.access_token}`
         }
       });
 
@@ -164,10 +199,10 @@ export default function SatelliteManager() {
 
   const handleUpdateTLE = async (id) => {
     try {
-      const response = await fetch(`/api/satellites/${id}/tle`, {
+      const response = await fetch(`/api/satellite/${id}/tle`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${session?.accessToken}`
+          'Authorization': `${session?.token_type} ${session?.access_token}`
         }
       });
 
@@ -178,6 +213,21 @@ export default function SatelliteManager() {
       console.error('Error updating TLE:', error);
     }
   };
+
+  const handleColorClick = (event) => {
+    setColorPickerAnchorEl(event.currentTarget);
+  };
+
+  const handleColorClose = () => {
+    setColorPickerAnchorEl(null);
+  };
+
+  const handleColorSelect = (color) => {
+    setFormData({...formData, hex_color: color});
+    handleColorClose();
+  };
+
+  const colorPickerOpen = Boolean(colorPickerAnchorEl);
 
   const columns = [
     {
@@ -191,10 +241,22 @@ export default function SatelliteManager() {
       key: 'noardId',
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
+      title: '颜色',
+      dataIndex: 'hex_color',
+      key: 'hex_color',
+      render: (hex_color) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ 
+            width: '20px', 
+            height: '20px', 
+            backgroundColor: hex_color || '#3388ff', 
+            marginRight: '8px',
+            borderRadius: '4px',
+            border: '1px solid #ddd'
+          }}></div>
+          {hex_color || '#3388ff'}
+        </div>
+      ),
     },
     {
       title: '载荷数量',
@@ -386,7 +448,13 @@ export default function SatelliteManager() {
         </ConfigProvider>
       </Box>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+      <Dialog 
+        open={open} 
+        onClose={loading ? undefined : handleClose}
+        maxWidth="md" 
+        fullWidth
+        disableEscapeKeyDown={loading}
+      >
         <DialogTitle>
           {editData ? '编辑卫星' : '添加卫星'}
         </DialogTitle>
@@ -406,8 +474,10 @@ export default function SatelliteManager() {
               multiline
               rows={3}
               placeholder="粘贴三行TLE数据，包含：卫星名称、TLE1、TLE2"
-              onPaste={handleTLEPaste}
+              value={tleText}
+              onChange={handleTLEPaste}
               sx={{ mb: 2 }}
+              disabled={loading}
             />
           </Box>
 
@@ -418,47 +488,74 @@ export default function SatelliteManager() {
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             margin="normal"
             required
+            disabled={loading}
           />
+          
           <TextField
             fullWidth
-            label="NORAD ID"
-            value={formData.noardId}
-            onChange={(e) => setFormData({ ...formData, noardId: e.target.value })}
+            label="颜色"
+            value={formData.hex_color}
+            onChange={(e) => setFormData({ ...formData, hex_color: e.target.value })}
             margin="normal"
-            required
+            disabled={loading}
+            InputProps={{
+              startAdornment: (
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  backgroundColor: formData.hex_color || '#3388ff', 
+                  marginRight: '8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ddd'
+                }}></div>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <ColorLens
+                    onClick={handleColorClick}
+                    style={{ cursor: loading ? 'wait' : 'pointer' }}
+                  />
+                </InputAdornment>
+              )
+            }}
           />
-          <TextField
-            fullWidth
-            label="描述"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            margin="normal"
-            multiline
-            rows={2}
-          />
-          <TextField
-            fullWidth
-            label="TLE Line 1"
-            value={formData.tle1}
-            onChange={(e) => setFormData({ ...formData, tle1: e.target.value })}
-            margin="normal"
-            required
-            error={!formData.tle1}
-          />
-          <TextField
-            fullWidth
-            label="TLE Line 2"
-            value={formData.tle2}
-            onChange={(e) => setFormData({ ...formData, tle2: e.target.value })}
-            margin="normal"
-            required
-            error={!formData.tle2}
-          />
+
+          <Popover
+            open={colorPickerOpen}
+            anchorEl={colorPickerAnchorEl}
+            onClose={handleColorClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'left',
+            }}
+          >
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', p: 1, maxWidth: 200 }}>
+              {colorOptions.map((color) => (
+                <Box
+                  key={color}
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    backgroundColor: color,
+                    borderRadius: '50%',
+                    margin: 0.5,
+                    cursor: loading ? 'wait' : 'pointer',
+                    border: '1px solid #ddd',
+                  }}
+                  onClick={() => handleColorSelect(color)}
+                />
+              ))}
+            </Box>
+          </Popover>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>取消</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            保存
+          <Button onClick={handleClose} disabled={loading}>取消</Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? '保存中...' : '保存'}
           </Button>
         </DialogActions>
       </Dialog>

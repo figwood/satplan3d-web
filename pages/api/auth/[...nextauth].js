@@ -4,7 +4,6 @@ import FormData from 'form-data'
 import fetch from 'node-fetch'
 
 export const authOptions = {
-  // 添加 secret 配置（必须）
   secret: process.env.NEXTAUTH_SECRET || "your-development-only-secret-key",
   providers: [
     CredentialsProvider({
@@ -15,18 +14,15 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          // 构建登录URL
           const apiUrl = process.env.API_URL || 'http://localhost:8000';
           const loginUrl = `${apiUrl}/api/login`;
           
           console.log(`尝试登录: ${credentials.username}, API URL: ${loginUrl}`);
 
-          // 使用 form-data 库创建正确的 multipart/form-data 请求
           const form = new FormData();
           form.append('username', credentials.username);
           form.append('password', credentials.password);
 
-          // 发送请求
           const res = await fetch(loginUrl, {
             method: 'POST',
             body: form
@@ -34,24 +30,31 @@ export const authOptions = {
 
           console.log('登录响应状态:', res.status);
           
-          // 确保响应有效
           if (!res.ok) {
             console.error(`登录失败: HTTP ${res.status}`);
             return null;
           }
           
           const data = await res.json();
-          console.log('登录响应数据:', data);
+          console.log('登录响应数据:', {
+            hasToken: !!data.access_token,
+            tokenType: data.token_type,
+            tokenLength: data.access_token?.length
+          });
 
           if (data.access_token) {
+            // 直接返回原始令牌数据，不做任何修改
             return {
               id: credentials.username,
               name: credentials.username,
-              accessToken: data.access_token,
+              // 存储完整的令牌信息
+              access_token: data.access_token,
+              token_type: data.token_type || 'Bearer',
+              raw_token: data.access_token // 保存一个原始副本
             }
           }
 
-          console.error('登录失败:', data);
+          console.error('登录失败: 无法获取访问令牌');
           return null
         } catch (error) {
           console.error('登录错误:', error)
@@ -65,24 +68,29 @@ export const authOptions = {
     maxAge: 24 * 60 * 60 // 24 hours
   },
   callbacks: {
-    async jwt({ token, user }) {
-      // 保持现有的 token 数据
+    async jwt({ token, user, account }) {
       if (user) {
-        token.accessToken = user.accessToken;
+        // 保持令牌的原始格式
+        token.access_token = user.access_token;
+        token.raw_token = user.raw_token;
+        token.token_type = user.token_type;
         token.user = {
           name: user.name,
           id: user.id
         };
+        console.log('JWT回调 - 令牌已更新', {
+          hasToken: !!token.access_token,
+          tokenType: token.token_type
+        });
       }
       return token;
     },
     async session({ session, token }) {
-      // 确保 session.user 存在
-      session.user = session.user || {};
-      
-      // 添加访问令牌到会话中
       if (token) {
-        session.accessToken = token.accessToken;
+        // 使用原始令牌格式
+        session.access_token = token.access_token;
+        session.token_type = token.token_type;
+        session.raw_token = token.raw_token;
         session.user = {
           name: token.user?.name || token.name || "用户",
           id: token.user?.id || token.sub
@@ -91,15 +99,12 @@ export const authOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // 如果是登录回调，直接重定向到管理页面
       if (url.includes('/api/auth/callback')) {
         return `${baseUrl}/admin`;
       }
-      // 如果是相对路径，添加基础URL
       if (url.startsWith('/')) {
         return `${baseUrl}${url}`;
       }
-      // 如果URL不是以基础URL开头，则返回基础URL
       if (!url.startsWith(baseUrl)) {
         return baseUrl;
       }
@@ -109,7 +114,8 @@ export const authOptions = {
   pages: {
     signIn: '/login',
     error: '/login'
-  }
+  },
+  debug: true // 启用调试以便排查问题
 }
 
 export default NextAuth(authOptions)
