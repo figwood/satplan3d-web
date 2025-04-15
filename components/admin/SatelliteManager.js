@@ -488,8 +488,24 @@ export default function SatelliteManager() {
       setExpandedRows(expandedKeys);
     },
     expandedRowRender: (record) => (
-      <div style={{ margin: 0, maxHeight: '400px', overflow: 'auto' }}>
-        <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 1, padding: '8px 0' }}>
+      <div style={{ 
+        padding: '0 16px 16px',
+        position: 'relative',
+        backgroundColor: '#fff',
+        maxHeight: '600px',  // 设置最大高度
+        overflow: 'auto'     // 启用滚动
+      }}>
+        <div style={{ 
+          marginBottom: '10px', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          backgroundColor: '#fff',
+          padding: '8px 0',
+          position: 'sticky',  // 固定在顶部
+          top: 0,
+          zIndex: 1
+        }}>
           <Typography variant="subtitle2">载荷列表</Typography>
           <AntButton
             type="primary"
@@ -510,6 +526,7 @@ export default function SatelliteManager() {
             rowKey={(s) => record.noardId+"_"+s.name}
             bordered
             scroll={{ x: 'max-content' }}
+            className="sensor-table"
           />
         ) : (
           <Typography style={{ padding: '20px 0', textAlign: 'center', color: '#999' }}>
@@ -527,9 +544,26 @@ export default function SatelliteManager() {
   };
   
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">卫星管理</Typography>
+    <Box sx={{ 
+      position: 'fixed',
+      top: 64,  // 为顶部导航栏留出空间
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden',
+      bgcolor: '#fff'
+    }}>
+      <Box sx={{ 
+        borderBottom: 1, 
+        borderColor: 'divider',
+        px: 2,
+        py: 1,
+        display: 'flex', 
+        justifyContent: 'flex-end',
+        bgcolor: '#fafafa'
+      }}>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -539,13 +573,58 @@ export default function SatelliteManager() {
         </Button>
       </Box>
 
-      <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+      <Box sx={{ 
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        '& .ant-table-wrapper': {
+          margin: '0 16px'
+        },
+        '& .ant-table': {
+          overflow: 'visible'
+        },
+        '& .ant-table-container': {
+          overflow: 'visible'
+        },
+        '& .ant-table-body': {
+          overflow: 'visible !important'
+        },
+        '& .ant-table-cell': {
+          padding: '20px 16px !important'
+        },
+        '& .ant-table-row': {
+          height: '72px'
+        },
+        '& .ant-table-expanded-row': {
+          '& .ant-table-wrapper': {
+            margin: '0'
+          }
+        },
+        // 子表格样式
+        '& .sensor-table': {
+          '& .ant-table-cell': {
+            padding: '16px !important'
+          },
+          '& .ant-table-row': {
+            height: '60px'
+          },
+          '& .ant-table-thead > tr > th': {
+            background: '#fafafa',
+            fontWeight: 600
+          }
+        }
+      }}>
         <ConfigProvider
           theme={{
             components: {
               Table: {
-                borderRadius: 4,
-                paddingContentVerticalLG: 12,
+                borderRadius: 0,
+                padding: 0,
+                paddingContentVerticalLG: 20,
+                rowHoverBg: '#fafafa',
+                headerBg: '#f5f5f5',
+                headerColor: 'rgba(0, 0, 0, 0.85)',
+                borderColor: '#f0f0f0',
               },
             },
           }}
@@ -555,14 +634,9 @@ export default function SatelliteManager() {
             dataSource={satellites}
             rowKey={(record) => record.id}
             expandable={expandableConfig}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total) => `共 ${total} 条数据`
-            }}
+            pagination={false}
             bordered
-            scroll={{ x: 'max-content', y: 'calc(100vh - 300px)' }}
+            scroll={{ x: 'max-content' }}
           />
         </ConfigProvider>
       </Box>
