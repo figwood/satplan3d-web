@@ -18,9 +18,6 @@ export default async function handler(req, res) {
       'Pragma': 'no-cache'
     }
 
-    // 打印请求信息
-    console.log(`发送 ${req.method} 请求到: ${fullUrl}`);
-    
     const response = await fetch(fullUrl, {
       method: req.method,
       headers,

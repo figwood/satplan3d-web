@@ -43,9 +43,6 @@ export default async function handler(req, res) {
     
     // 打印请求信息
     const requestUrl = `${apiUrl}/api/satellite`;
-    console.log(`发送 ${req.method} 请求到: ${requestUrl}`);
-    console.log('修改后的请求体:', JSON.stringify(modifiedBody));
-
     const response = await fetch(requestUrl, {
       method: 'POST',
       headers,
