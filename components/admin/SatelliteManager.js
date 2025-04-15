@@ -36,7 +36,6 @@ export default function SatelliteManager() {
   const [error, setError] = useState('');
   const [tleText, setTleText] = useState('');
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = useState(null);
-  // Add new state for sensor dialog
   const [sensorDialogOpen, setSensorDialogOpen] = useState(false);
   const [sensorFormData, setSensorFormData] = useState({
     sensor_name: '',
@@ -48,6 +47,7 @@ export default function SatelliteManager() {
     hex_color: '#3388ff',
     noard_id: ''
   });
+  const [editingSensor, setEditingSensor] = useState(null);
   const [currentSatellite, setCurrentSatellite] = useState(null);
 
   // Pre-defined color palette options
@@ -260,26 +260,39 @@ export default function SatelliteManager() {
     setSensorDialogOpen(true);
   };
 
-  const handleCloseSensorDialog = () => {
-    setSensorDialogOpen(false);
-    setSensorFormData({
-      sensor_name: '',
-      resolution: 0,
-      right_side_angle: 0,
-      left_side_angle: 0,
-      init_angle: 0,
-      observe_angle: 0,
-      hex_color: '#3388ff',
-      noard_id: ''
+  const handleEditSensor = (sensor) => {
+    console.log(sensor)
+    setEditingSensor({
+      originalName: sensor.name,
+      noard_id: sensor.noard_id
     });
-    setError('');
+    setSensorFormData({
+      sensor_name: sensor.name,
+      resolution: sensor.resolution || 0,
+      right_side_angle: sensor.right_side_angle || 0,
+      left_side_angle: sensor.left_side_angle || 0,
+      init_angle: sensor.init_angle || 0,
+      observe_angle: sensor.observe_angle || 0,
+      hex_color: sensor.hex_color || '#3388ff',
+      noard_id: sensor.noard_id
+    });
+    setSensorDialogOpen(true);
   };
 
   const handleSubmitSensor = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/sensor', {
-        method: 'POST',
+      const isEditing = !!editingSensor;
+      
+      console.log(editingSensor)
+      const url = isEditing 
+        ? `/api/sensor/${editingSensor.noard_id}/${editingSensor.originalName}`
+        : '/api/sensor';
+      
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
@@ -300,6 +313,22 @@ export default function SatelliteManager() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseSensorDialog = () => {
+    setSensorDialogOpen(false);
+    setSensorFormData({
+      sensor_name: '',
+      resolution: 0,
+      right_side_angle: 0,
+      left_side_angle: 0,
+      init_angle: 0,
+      observe_angle: 0,
+      hex_color: '#3388ff',
+      noard_id: ''
+    });
+    setEditingSensor(null);
+    setError('');
   };
 
   const colorPickerOpen = Boolean(colorPickerAnchorEl);
@@ -383,9 +412,9 @@ export default function SatelliteManager() {
       key: 'name',
     },
     {
-      title: '幅宽',
-      dataIndex: 'width',
-      key: 'width',
+      title: '分辨率',
+      dataIndex: 'resolution',
+      key: 'resolution',
     },
     {
       title: '观测角',
@@ -422,7 +451,7 @@ export default function SatelliteManager() {
               type="primary" 
               icon={<EditOutlined />} 
               size="small" 
-              onClick={() => console.log('编辑载荷', record)}
+              onClick={() => handleEditSensor(record)}
             />
           </Tooltip>
           <Tooltip title="删除载荷">
@@ -644,7 +673,7 @@ export default function SatelliteManager() {
         fullWidth
         disableEscapeKeyDown={loading}
       >
-        <DialogTitle>添加载荷</DialogTitle>
+        <DialogTitle>{editingSensor ? '编辑载荷' : '添加载荷'}</DialogTitle>
         <DialogContent>
           {error && (
             <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
