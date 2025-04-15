@@ -26,6 +26,10 @@ export default function SatelliteManager() {
   const [editData, setEditData] = useState(null);
   const [expandedRows, setExpandedRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [tleUpdateDialogOpen, setTleUpdateDialogOpen] = useState(false);
+  const [updatingTleSatellite, setUpdatingTleSatellite] = useState(null);
+  const [newTleText, setNewTleText] = useState('');
+  const [tleUpdateError, setTleUpdateError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     noardId: '',
@@ -214,20 +218,39 @@ export default function SatelliteManager() {
     }
   };
 
-  const handleUpdateTLE = async (id) => {
+  const handleUpdateTLE = async (satellite) => {
+    setUpdatingTleSatellite(satellite);
+    setTleUpdateDialogOpen(true);
+  };
+
+  const handleTleUpdateSubmit = async () => {
     try {
-      const response = await fetch(`/api/satellite/${id}/tle`, {
+      setLoading(true);
+      document.body.style.cursor = 'wait';  // 设置鼠标等待样式
+      const response = await fetch('/api/tle', {
         method: 'PUT',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
-        }
+        },
+        body: JSON.stringify({ tle: newTleText }),
       });
 
       if (response.ok) {
-        fetchSatellites();
+        await fetchSatellites();
+        setTleUpdateDialogOpen(false);
+        setNewTleText('');
+        setTleUpdateError('');
+      } else {
+        const errorData = await response.json();
+        setTleUpdateError(errorData.detail || '更新TLE失败');
       }
     } catch (error) {
       console.error('Error updating TLE:', error);
+      setTleUpdateError('更新TLE过程中发生错误');
+    } finally {
+      setLoading(false);
+      document.body.style.cursor = 'default';  // 恢复默认鼠标样式
     }
   };
 
@@ -378,6 +401,26 @@ export default function SatelliteManager() {
       ),
     },
     {
+      title: '最新TLE时间',
+      dataIndex: 'latest_tle_time',
+      key: 'latest_tle_time',
+      render: (latest_tle_time) => {
+        if (!latest_tle_time) return '-';
+        const utcDate = new Date(latest_tle_time*1000);
+        // 转换为本地时间，注意要减去时区偏移
+        const localDate = new Date(utcDate.getTime() - utcDate.getTimezoneOffset() * 60000);
+        return localDate.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+      }
+    },
+    {
       title: '载荷数量',
       key: 'sensorCount',
       render: (_, record) => (
@@ -405,15 +448,6 @@ export default function SatelliteManager() {
               size="small"
               onClick={() => handleDelete(record.id)}
             />
-          </Tooltip>
-          <Tooltip title="更新TLE">
-            <AntButton 
-              icon={<ReloadOutlined />} 
-              size="small"
-              onClick={() => handleUpdateTLE(record.id)}
-            >
-              更新TLE
-            </AntButton>
           </Tooltip>
         </Space>
       ),
@@ -562,8 +596,16 @@ export default function SatelliteManager() {
         py: 1,
         display: 'flex', 
         justifyContent: 'flex-end',
-        bgcolor: '#fafafa'
+        bgcolor: '#fafafa',
+        gap: 1
       }}>
+        <Button
+          variant="outlined"
+          startIcon={<ReloadOutlined />}
+          onClick={() => setTleUpdateDialogOpen(true)}
+        >
+          更新TLE
+        </Button>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -872,6 +914,46 @@ export default function SatelliteManager() {
             disabled={loading}
           >
             {loading ? '保存中...' : '保存'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={tleUpdateDialogOpen}
+        onClose={() => !loading && setTleUpdateDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>更新 TLE 数据</DialogTitle>
+        <DialogContent>
+          {tleUpdateError && (
+            <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+              {tleUpdateError}
+            </Alert>
+          )}
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="新的TLE数据"
+            value={newTleText}
+            onChange={(e) => setNewTleText(e.target.value)}
+            margin="normal"
+            required
+            disabled={loading}
+            placeholder="请输入三行TLE数据，包含：卫星名称、TLE1、TLE2"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTleUpdateDialogOpen(false)} disabled={loading}>
+            取消
+          </Button>
+          <Button
+            onClick={handleTleUpdateSubmit}
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? '更新中...' : '更新'}
           </Button>
         </DialogActions>
       </Dialog>
