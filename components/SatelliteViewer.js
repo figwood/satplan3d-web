@@ -92,27 +92,6 @@ const SatelliteViewer = () => {
       }
     };
   }, []);
-  
-  useEffect(() => {
-    if (session?.access_token) {
-      fetchSatellites();
-    }
-  }, [session]);
-
-  const fetchSatellites = async () => {
-    try {
-      const response = await fetch('/api/satellite/list', {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        }
-      });
-      const data = await response.json();
-      const transformedData = transformSatelliteData(data);
-      setSatelliteData(transformedData);
-    } catch (error) {
-      console.error('Error fetching satellites:', error);
-    }
-  };
 
   /**
    * 加载卫星数据
@@ -120,7 +99,10 @@ const SatelliteViewer = () => {
   const loadSatelliteData = async () => {
     try {
       const data = await fetchSatelliteData();
-      setSatelliteData(data);
+      if (data) {
+        const transformedData = transformSatelliteData(data);
+        setSatelliteData(transformedData);
+      }
     } catch (error) {
       console.error('加载卫星数据失败:', error);
     }

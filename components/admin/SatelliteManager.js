@@ -75,11 +75,28 @@ export default function SatelliteManager() {
           'Authorization': `Bearer ${session?.access_token}`
         }
       });
+      if (response.status === 401) {
+        // Token 过期或无效，重定向到登录页
+        window.location.href = '/login';
+        return;
+      }
       const data = await response.json();
       setSatellites(data);
     } catch (error) {
       console.error('Error fetching satellites:', error);
+      if (error.message?.includes('401')) {
+        window.location.href = '/login';
+      }
     }
+  };
+
+  // 统一的错误处理函数
+  const handleApiError = (error) => {
+    if (error.status === 401 || error.message?.includes('401')) {
+      window.location.href = '/login';
+      return;
+    }
+    console.error('API Error:', error);
   };
 
   const handleOpen = (satellite = null) => {
@@ -182,6 +199,11 @@ export default function SatelliteManager() {
         body: JSON.stringify(body),
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         await fetchSatellites();
         handleClose();
@@ -192,6 +214,9 @@ export default function SatelliteManager() {
     } catch (error) {
       console.error('Error saving satellite:', error);
       setError('保存过程中发生错误');
+      if (error.message?.includes('401')) {
+        window.location.href = '/login';
+      }
     } finally {
       setLoading(false);
       document.body.style.cursor = 'default';
@@ -210,11 +235,19 @@ export default function SatelliteManager() {
         }
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         fetchSatellites();
       }
     } catch (error) {
       console.error('Error deleting satellite:', error);
+      if (error.message?.includes('401')) {
+        window.location.href = '/login';
+      }
     }
   };
 
@@ -307,6 +340,11 @@ export default function SatelliteManager() {
         }
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         await fetchSatellites();
       } else {
@@ -315,6 +353,9 @@ export default function SatelliteManager() {
       }
     } catch (error) {
       console.error('删除载荷出错:', error);
+      if (error.message?.includes('401')) {
+        window.location.href = '/login';
+      }
     }
   };
 
@@ -338,6 +379,11 @@ export default function SatelliteManager() {
         body: JSON.stringify(sensorFormData),
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         await fetchSatellites();
         handleCloseSensorDialog();
@@ -348,6 +394,9 @@ export default function SatelliteManager() {
     } catch (error) {
       console.error('Error saving sensor:', error);
       setError('保存载荷过程中发生错误');
+      if (error.message?.includes('401')) {
+        window.location.href = '/login';
+      }
     } finally {
       setLoading(false);
     }

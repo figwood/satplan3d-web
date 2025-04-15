@@ -122,7 +122,7 @@ export const scheduleTask = async (noard_id, sensor_name, start_time, stop_time,
     const response = await fetch('/api/schedule', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         noard_id,

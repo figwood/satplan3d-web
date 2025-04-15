@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       throw new Error('API_URL not configured');
     }
 
-    const response = await fetch(`${apiUrl}/track-points?noard_id=${noard_id}`);
+    const response = await fetch(`${apiUrl}/api/track-points?noard_id=${noard_id}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch track points: ${response.statusText}`);
