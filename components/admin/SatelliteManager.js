@@ -271,6 +271,30 @@ export default function SatelliteManager() {
     setSensorDialogOpen(true);
   };
 
+  const handleDeleteSensor = async (sensor) => {
+    if (!confirm(`确定要删除载荷"${sensor.name}"吗？`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sensor/${sensor.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        await fetchSatellites();
+      } else {
+        const errorData = await response.json();
+        console.error('删除载荷失败:', errorData);
+      }
+    } catch (error) {
+      console.error('删除载荷出错:', error);
+    }
+  };
+
   const handleSubmitSensor = async () => {
     try {
       setLoading(true);
@@ -450,7 +474,7 @@ export default function SatelliteManager() {
               danger 
               icon={<DeleteOutlined />} 
               size="small"
-              onClick={() => console.log('删除载荷', record)}
+              onClick={() => handleDeleteSensor(record)}
             />
           </Tooltip>
         </Space>
