@@ -12,7 +12,7 @@ import {
 } from '../utils/satellite/apiService';
 import { initCesiumViewer, setupCameraEvents } from '../utils/satellite/cesiumUtils';
 import { SatelliteVisualizer } from '../components/satellite/SatelliteVisualizer';
-import SatelliteTree from '../components/satellite/SatelliteTree';
+import SatelliteTree, { transformSatelliteData } from '../components/satellite/SatelliteTree';
 import SatelliteControls from '../components/satellite/SatelliteControls';
 
 /**
@@ -93,6 +93,27 @@ const SatelliteViewer = () => {
     };
   }, []);
   
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchSatellites();
+    }
+  }, [session]);
+
+  const fetchSatellites = async () => {
+    try {
+      const response = await fetch('/api/satellite/list', {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      });
+      const data = await response.json();
+      const transformedData = transformSatelliteData(data);
+      setSatelliteData(transformedData);
+    } catch (error) {
+      console.error('Error fetching satellites:', error);
+    }
+  };
+
   /**
    * 加载卫星数据
    */

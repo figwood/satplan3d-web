@@ -72,14 +72,7 @@ export default function SatelliteManager() {
         }
       });
       const data = await response.json();
-      const satelliteArray = data.children || data;
-      setSatellites(Array.isArray(satelliteArray) ? satelliteArray.map(sat => ({
-        id: sat.data.noard_id,
-        noardId: sat.data.noard_id,
-        name: sat.data.name,
-        hex_color: sat.data.hex_color,
-        sensors: sat.data.sensors || [],
-      })) : []);
+      setSatellites(data);
     } catch (error) {
       console.error('Error fetching satellites:', error);
     }
@@ -261,10 +254,9 @@ export default function SatelliteManager() {
   };
 
   const handleEditSensor = (sensor) => {
-    console.log(sensor)
+    console.log('编辑载荷数据:', JSON.stringify(sensor, null, 2));
     setEditingSensor({
-      originalName: sensor.name,
-      noard_id: sensor.noard_id
+      sensor_id: sensor.id
     });
     setSensorFormData({
       sensor_name: sensor.name,
@@ -284,9 +276,8 @@ export default function SatelliteManager() {
       setLoading(true);
       const isEditing = !!editingSensor;
       
-      console.log(editingSensor)
       const url = isEditing 
-        ? `/api/sensor/${editingSensor.noard_id}/${editingSensor.originalName}`
+        ? `/api/sensor/${editingSensor.sensor_id}`
         : '/api/sensor';
       
       const method = isEditing ? 'PUT' : 'POST';
@@ -341,8 +332,8 @@ export default function SatelliteManager() {
     },
     {
       title: 'NORAD ID',
-      dataIndex: 'noardId',
-      key: 'noardId',
+      dataIndex: 'noard_id',
+      key: 'noard_id',
     },
     {
       title: '颜色',

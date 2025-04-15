@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "../../auth/[...nextauth]"
+import { authOptions } from "../auth/[...nextauth]"
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions)
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'API_URL not configured' })
   }
 
-  const { noard_id, sensor_name } = req.query;
+  const { sensor_id } = req.query;
 
   if (req.method !== 'PUT') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     }
 
     const {
-      sensor_name: newSensorName,
+      sensor_name,
       resolution,
       right_side_angle,
       left_side_angle,
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     } = req.body;
 
     // 验证必填字段
-    if (!newSensorName || !resolution || right_side_angle === undefined || 
+    if (!sensor_name || !resolution || right_side_angle === undefined || 
         left_side_angle === undefined || init_angle === undefined || observe_angle === undefined) {
       return res.status(400).json({
         error: '缺少必要参数',
@@ -50,14 +50,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const response = await fetch(`${apiUrl}/sensor/${noard_id}/${sensor_name}`, {
+    const response = await fetch(`${apiUrl}/api/sensor/${sensor_id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
-        sensor_name: newSensorName,
+        sensor_name,
         resolution,
         right_side_angle,
         left_side_angle,
