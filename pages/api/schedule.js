@@ -5,13 +5,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { noard_id, sensor_name, start_time, stop_time, area } = req.body;
+    const { 
+      noard_id, 
+      sensor_id,  // 确保接收 sensor_id
+      sensor_name, 
+      start_time, 
+      stop_time, 
+      area 
+    } = req.body;
 
     // Validate required fields
-    if (!noard_id || !sensor_name || !start_time || !stop_time || !area) {
+    if (!noard_id || !sensor_id || !sensor_name || !start_time || !stop_time || !area) {
       return res.status(400).json({ 
         error: '缺少必要参数',
-        required: ['noard_id', 'sensor_name', 'start_time', 'stop_time', 'area']
+        required: ['noard_id', 'sensor_id', 'sensor_name', 'start_time', 'stop_time', 'area']
       });
     }
 
@@ -43,6 +50,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         noard_id,
+        sensor_id,     // 确保传递 sensor_id
         sensor_name,
         start_time,
         stop_time,
@@ -55,7 +63,14 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    res.status(200).json(data);
+    // 在响应中添加传感器信息
+    const enrichedData = {
+      ...data,
+      noard_id,
+      sensor_id,
+      sensor_name
+    };
+    res.status(200).json(enrichedData);
   } catch (error) {
     console.error('调度任务处理错误:', error);
     res.status(500).json({ error: error.message || '调度任务失败' });

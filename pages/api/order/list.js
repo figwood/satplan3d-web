@@ -4,19 +4,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    // TODO: Replace this with actual database query
-    const orders = [
-      {
-        "order_name": "北京",
-        "order_id": 3,
-        "hex_color": "#FF0000"
-      }
-      // Add more orders as needed
-    ];
+    const apiUrl = process.env.API_URL;
+    if (!apiUrl) {
+      throw new Error('API_URL not configured');
+    }
 
+    const response = await fetch(`${apiUrl}/api/order/list`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return res.status(response.status).json(error);
+    }
+
+    const orders = await response.json();
     res.status(200).json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: error.message || 'Internal server error' });
   }
 }

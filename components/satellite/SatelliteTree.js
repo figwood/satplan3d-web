@@ -13,7 +13,6 @@ const SatelliteTree = ({
 
   // 本地转换函数
   const transformToTreeData = (satellites = [], orders = []) => {
-    console.log('Transforming data:', { satellites, orders }); // 调试日志
 
     return [
       {
@@ -33,6 +32,7 @@ const SatelliteTree = ({
             key: `satellite-${satellite.noard_id}-sensor-${sensor.name}`,
             isLeaf: true,
             data: {
+              id: sensor.id,               // 添加传感器ID
               noard_id: satellite.noard_id,
               name: sensor.name,
               resolution: sensor.resolution,
@@ -67,7 +67,6 @@ const SatelliteTree = ({
 
   useEffect(() => {
     if (satelliteData) {
-      console.log('Received satellite data:', satelliteData); // 调试日志
       const transformedData = transformToTreeData(
         satelliteData.satellites || [],
         satelliteData.orders || []

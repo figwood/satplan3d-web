@@ -124,13 +124,14 @@ export const fetchPathPoints = async (noard_id, sensor_name) => {
 /**
  * 提交卫星调度任务
  * @param {string} noard_id 卫星ID
+ * @param {string} sensor_id 传感器ID
  * @param {string} sensor_name 传感器名称
  * @param {number} start_time 开始时间 (UTC 时间戳，秒)
  * @param {number} stop_time 结束时间 (UTC 时间戳，秒)
  * @param {Object} area 区域坐标 {x_min, y_min, x_max, y_max}
  * @returns {Promise<Object>} 调度结果
  */
-export const scheduleTask = async (noard_id, sensor_name, start_time, stop_time, area) => {
+export const scheduleTask = async (noard_id, sensor_id, sensor_name, start_time, stop_time, area) => {
   try {
     const response = await fetch('/api/schedule', {
       method: 'POST',
@@ -139,6 +140,7 @@ export const scheduleTask = async (noard_id, sensor_name, start_time, stop_time,
       },
       body: JSON.stringify({
         noard_id,
+        sensor_id,   // 确保传递 sensor_id
         sensor_name,
         start_time,
         stop_time,
@@ -232,8 +234,9 @@ export const displayScheduleResults = (scheduleResult, viewer, options = {}) => 
             <p>开始时间: ${startTime.toLocaleString()}</p>
             <p>结束时间: ${endTime.toLocaleString()}</p>
             <p>持续时间: ${(opportunity.end_time - opportunity.start_time)} 秒</p>
-            <p>卫星: ${scheduleResult.satellite || 'N/A'}</p>
-            <p>传感器: ${scheduleResult.sensor || 'N/A'}</p>
+            <p>卫星: ${scheduleResult.noard_id || 'N/A'}</p>
+            <p>传感器: ${scheduleResult.sensor_name || 'N/A'}</p>
+            <p>传感器ID: ${scheduleResult.sensor_id || 'N/A'}</p>
           `
         });
         

@@ -300,3 +300,23 @@
   width: 100%;
   padding: 2px 0;
 }
+
+.planningControlPanel {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px;
+  background-color: rgba(30, 30, 30, 0.85);
+  border-radius: 4px;
+}
+
+.planningControlPanel button {
+  margin-left: 10px;
+  min-width: 100px;
+}
+
+.planningControlPanel :global(.ant-btn-primary[disabled]) {
+  background-color: rgba(24, 144, 255, 0.35);
+  border-color: rgba(24, 144, 255, 0.35);
+  color: rgba(255, 255, 255, 0.35);
+}

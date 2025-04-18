@@ -40,6 +40,8 @@ const SatelliteViewer = () => {
   const [planStartDate, setPlanStartDate] = useState(dayjs()); // 使用dayjs创建今天的日期
   const [planPeriod, setPlanPeriod] = useState(3); // 默认3天
   const [isDrawingArea, setIsDrawingArea] = useState(false);
+  const [planningResults, setPlanningResults] = useState(null);
+  const [currentArea, setCurrentArea] = useState(null);
 
   /**
    * 初始化 Cesium 查看器
@@ -156,6 +158,8 @@ const SatelliteViewer = () => {
       return;
     }
 
+    setCurrentArea(area); // 保存当前规划区域
+
     // 检查 Cesium 是否可用
     if (!viewerRef.current || !Cesium) {
       console.error('Cesium 未初始化');
@@ -181,6 +185,7 @@ const SatelliteViewer = () => {
         y_max: area.north
       };
 
+      const results = [];
       // 过滤出所有有效的传感器节点（叶子节点）
       const sensorNodes = checkedNodes.filter(node => 
         node.data && node.data.name && node.isLeaf
@@ -193,31 +198,105 @@ const SatelliteViewer = () => {
 
       // 为每个选中的传感器节点进行规划
       for (const node of sensorNodes) {
+        
         // 调用API服务，使用时间戳格式
         const response = await scheduleTaskAPI(
           node.data.noard_id,
+          node.data.id,     // 添加传递 sensor_id
           node.data.name,
           startTimestamp,
           stopTimestamp,
           apiArea
         );
 
-        // 显示调度结果
+        // 如果有观测机会，添加到结果中
         if (response && response.opportunities && response.opportunities.length > 0) {
+          results.push({
+            sensor_id: node.data.id,
+            noard_id: node.data.noard_id,
+            sensor_name: node.data.name,
+            opportunities: response.opportunities,
+            hex_color: node.data.hex_color || node.data.satellite_hex_color || '#00FF00'
+          });
+
           // 使用卫星/传感器特定颜色
           const color = node.data.hex_color || node.data.satellite_hex_color || '#00FF00';
-          
-          // 创建Cesium颜色对象
           const fillColor = new Cesium.Color.fromCssColorString(color);
-          
-          // 手动在这里显示多边形，不依赖于apiService
           displayPolygonsOnMap(response, fillColor);
-        } else {
-          console.log(`没有找到传感器 ${node.data.name} 的观测机会`);
         }
       }
+
+      // 保存规划结果
+      setPlanningResults({
+        area: area,
+        start_time: startTimestamp,
+        stop_time: stopTimestamp,
+        results: results.map(result => ({
+          ...result,
+          sensor_id: result.sensor_id,  // 确保 sensor_id 被包含
+          opportunities: result.opportunities.map(opp => ({
+            ...opp,
+            sensor_id: result.sensor_id  // 在每个机会中也包含 sensor_id
+          }))
+        }))
+      });
+
     } catch (error) {
       console.error('调度任务提交失败:', error);
+    }
+  };
+
+  /**
+   * 保存规划结果
+   */
+  const handleSavePlan = async () => {
+    if (!planningResults) {
+      console.error('没有可保存的规划结果');
+      return;
+    }
+
+    try {
+      const paths = [];
+      planningResults.results.forEach(result => {
+        result.opportunities.forEach(opp => {
+          paths.push({
+            sensor_id: result.sensor_id,
+            start_time: opp.start_time,
+            stop_time: opp.end_time,
+            path: opp.polygon.map(p => `${p.lon},${p.lat}`).join(';')
+          });
+        });
+      });
+
+      const response = await fetch('/api/order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          order_name: `规划${dayjs(planningResults.start_time * 1000).format('YYMMDDHHmmss')}`,
+          start_time: planningResults.start_time,
+          stop_time: planningResults.stop_time,
+          hex_color: "#FF0000",
+          area: {
+            x_min: planningResults.area.west,
+            x_max: planningResults.area.east,
+            y_min: planningResults.area.south,
+            y_max: planningResults.area.north
+          },
+          paths: paths
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('保存规划失败');
+      }
+
+      // 保存成功后重新加载卫星数据以更新树状图
+      await loadSatelliteData();
+
+    } catch (error) {
+      console.error('保存规划失败:', error);
     }
   };
 
@@ -602,6 +681,14 @@ const SatelliteViewer = () => {
             onClick={onDrawTargetArea}
           >
             绘制目标区域
+          </Button>
+
+          <Button
+            type="primary"
+            disabled={!planningResults}
+            onClick={handleSavePlan}
+          >
+            保存规划
           </Button>
         </div>
       </div>
