@@ -160,10 +160,11 @@
 }
 
 .treeNodeLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 0 4px !important;
+  width: 100% !important;
 }
 
 .treeNodeLabel input[type="checkbox"] {
@@ -241,4 +242,61 @@
 /* 完全选中状态下的样式 */
 .customTree :global(.ant-tree-node-selected)::after {
   background: #1890ff;
+}
+
+.treeview {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.treeview :global(.ant-tree) {
+  background: transparent !important;
+}
+
+.treeview :global(.ant-tree-switcher) {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+}
+
+.treeview :global(.ant-tree-node-content-wrapper) {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+}
+
+.treeview :global(.ant-tree-node-content-wrapper:hover) {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.treeview :global(.ant-tree-node-selected) {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.treeview :global(.ant-tree-checkbox) {
+  margin-top: 4px;
+}
+
+.treeview :global(.ant-tree-checkbox-inner) {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.treeview :global(.ant-tree-checkbox-checked .ant-tree-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+.treeview :global(.ant-tree-title) {
+  color: white;
+}
+
+.treeview :global(.ant-tree-node-content-wrapper) {
+  overflow: visible;
+}
+
+.treeview :global(.ant-tree-treenode) {
+  width: 100%;
+  padding: 2px 0;
 }

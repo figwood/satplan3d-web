@@ -16,34 +16,47 @@ const getCesium = () => {
 
 /**
  * 获取卫星数据列表
- * @returns {Promise<Object>} 树形结构的卫星数据
+ * @returns {Promise<Object>} 包含卫星和观测规划数据的对象
  */
 export const fetchSatelliteData = async () => {
   try {
-    // 获取 API URL（如果在前端设置了的话）
-    const apiBaseUrl = process.env.API_URL || '';
+    const [satellitesResponse, ordersResponse] = await Promise.all([
+      fetch('/api/satellite/list', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      }),
+      fetch('/api/order/list', {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
+    ]);
     
-    // 构建请求 URL - 使用新的API端点
-    const url = `${apiBaseUrl}/api/satellite/list`;
-    
-    // 发送请求获取卫星数据
-    const response = await fetch(url, {
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error(`获取卫星数据失败: HTTP ${response.status}`);
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!satellitesResponse.ok) {
+      throw new Error(`获取卫星数据失败: HTTP ${satellitesResponse.status}`);
+    }
+    if (!ordersResponse.ok) {
+      throw new Error(`获取观测规划数据失败: HTTP ${ordersResponse.status}`);
     }
     
-    const data = await response.json();
-    return data;
+    const [satellites, orders] = await Promise.all([
+      satellitesResponse.json(),
+      ordersResponse.json()
+    ]);
+
+    return {
+      satellites,
+      orders
+    };
   } catch (error) {
-    console.error('API Service: 获取卫星数据错误:', error);
-    throw error;
+    console.error('API Service: 获取数据错误:', error);
+    return {
+      satellites: [],
+      orders: []
+    };
   }
 };
 

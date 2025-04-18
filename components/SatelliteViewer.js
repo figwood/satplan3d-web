@@ -12,7 +12,7 @@ import {
 } from '../utils/satellite/apiService';
 import { initCesiumViewer, setupCameraEvents } from '../utils/satellite/cesiumUtils';
 import { SatelliteVisualizer } from '../components/satellite/SatelliteVisualizer';
-import SatelliteTree, { transformSatelliteData } from '../components/satellite/SatelliteTree';
+import SatelliteTree from '../components/satellite/SatelliteTree';
 import SatelliteControls from '../components/satellite/SatelliteControls';
 
 /**
@@ -100,8 +100,8 @@ const SatelliteViewer = () => {
     try {
       const data = await fetchSatelliteData();
       if (data) {
-        const transformedData = transformSatelliteData(data);
-        setSatelliteData(transformedData);
+        // 直接传递完整的数据对象，包含 satellites 和 orders
+        setSatelliteData(data);
       }
     } catch (error) {
       console.error('加载卫星数据失败:', error);
@@ -611,20 +611,21 @@ const SatelliteViewer = () => {
         className={styles.treeviewPanel}
         style={{
           position: 'absolute',
-          width: '250px',
-          height: '100%',
+          width: '280px',
+          height: 'calc(100% - 60px)', // 减去顶部空间
           backgroundColor: 'rgba(30, 30, 30, 0.85)',
           color: 'white',
-          left: showTreeview ? '0' : '-250px',
-          top: 0,
+          left: showTreeview ? '0' : '-280px',
+          top: '60px',
           padding: '10px',
           boxSizing: 'border-box',
           zIndex: 99,
           transition: 'left 0.3s',
-          overflow: 'auto'
+          overflow: 'auto',
+          borderRight: '1px solid rgba(255, 255, 255, 0.1)'
         }}
       >
-        <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Satellite Data</h3>
+        <h3 style={{ margin: '0 0 15px 0' }}>卫星列表</h3>
         <SatelliteTree 
           satelliteData={satelliteData}
           selectedNode={selectedNode}

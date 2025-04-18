@@ -24,16 +24,20 @@ const SatelliteControls = ({
         className={styles.treeviewToggle}
         style={{
           position: 'absolute',
-          top: '10px',
-          left: showTreeview ? '260px' : '10px',
+          top: '60px',
+          left: showTreeview ? '280px' : '0px',
           zIndex: 100,
-          padding: '5px 10px',
-          background: '#333',
+          padding: '8px 12px',
+          background: 'rgba(30, 30, 30, 0.85)',
           color: 'white',
           border: 'none',
-          borderRadius: '3px',
+          borderRadius: '0 4px 4px 0',
           cursor: 'pointer',
-          transition: 'left 0.3s'
+          transition: 'left 0.3s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '14px'
         }}
       >
         {showTreeview ? '<<' : '>>'}
