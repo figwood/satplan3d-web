@@ -1,40 +1,59 @@
-# 卫星轨道可视化系统
+# Satellite Orbit Visualization System
 
-这是一个基于 Next.js 的 Web 应用程序，使用 CesiumJS 实现卫星轨道的三维可视化。
+This project is a Next.js web application for 3D satellite orbit visualization with CesiumJS. In addition to the visualization view, it also includes authentication, an admin panel, and API proxy routes for satellite, sensor, track, path, and scheduling data.
 
-## 环境配置
+## Environment Setup
 
-1. 安装依赖：
+1. Install dependencies:
 ```bash
 npm install
-# 或者
+# or
 yarn install
 ```
 
-3. 启动开发服务器：
+2. Configure environment variables in `.env.local`:
+```bash
+NEXTAUTH_SECRET=your-secret
+API_URL=http://localhost:8000
+```
+
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. 在浏览器中打开 [http://localhost:3000](http://localhost:3000) 查看运行效果
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 功能特性
+## Features
 
-- 卫星轨道的三维可视化展示
-- 基于时间的动态可视化及动画控制
-- 基于 React 的交互式用户界面
+- 3D satellite orbit visualization powered by CesiumJS
+- Time-based orbit display, path rendering, and animation controls
+- Tree-based satellite and sensor selection
+- Area-based scheduling workflow from the visualization interface
+- Admin login and satellite management pages
+- Next.js API routes for authentication and backend API forwarding
 
-## 文件结构说明
+## Project Structure
 
-- `pages/index.js` - 主页面
-- `pages/_app.js` - 自定义 App 组件
-- `pages/_document.js` - 自定义 Document 组件，用于 head 标签定制
-- `components/SatelliteViewer.js` - Cesium 视图组件
-- `utils/satellite.js` - 轨道计算的卫星类
-- `styles/globals.css` - 全局样式
-- `next.config.js` - Next.js 的 Cesium 配置
+- `pages/index.js` - Main visualization page
+- `components/SatelliteViewer.js` - Top-level Cesium viewer container
+- `components/satellite/SatelliteVisualizer.js` - Satellite visualization logic
+- `components/satellite/SatelliteTree.js` - Satellite and sensor tree view
+- `components/satellite/SatelliteControls.js` - Viewer interaction controls
+- `pages/login.js` - Admin login page
+- `pages/admin/index.js` - Admin dashboard entry
+- `components/admin/SatelliteManager.js` - Satellite management UI
+- `pages/api/` - Next.js API routes for auth, satellites, sensors, orders, scheduling, TLE, path points, and track points
+- `utils/satellite/apiService.js` - Frontend API request helpers
+- `utils/satellite/cesiumUtils.js` - Cesium viewer setup utilities
+- `utils/satellite/orbitUtils.js` - Orbit-related utility functions
+- `styles/globals.css` - Global styles
+- `styles/SatelliteViewer.module.css` - Viewer-specific styles
+- `next.config.js` - Next.js and Cesium build configuration
 
-## 开发注意事项
+## Development Notes
 
-1. 本项目使用 Next.js 框架，请确保熟悉 React 和 Next.js 的基本概念
-2. 3D 可视化部分使用 CesiumJS，需要对 Cesium API 有基本了解
+1. The project currently uses Next.js 14, React 18, and CesiumJS.
+2. `API_URL` must point to the backend service that provides login, satellite, sensor, order, and scheduling APIs.
+3. `/admin` is protected by NextAuth credentials-based authentication and depends on `NEXTAUTH_SECRET` being configured.
+4. Cesium static assets are served from the `public/cesium/` directory, so those files must remain available in deployment environments.
